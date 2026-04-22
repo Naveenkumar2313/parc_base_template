@@ -82,7 +82,25 @@ export const ComponentRegistry = {
             </Group>
         ),
     },
+    ground: {
+        type: 'ground',
+        pins: [
+            { id: 'gnd', x: 0, y: -1 } // Connects upward to circuit
+        ],
+        renderVisuals: () => (
+            <Group>
+                {/* Connecting wire */}
+                <Path data="M 0 -20 L 0 0" stroke="#2c3e50" strokeWidth={2} />
+                {/* Standard decreasing ground chassis plates */}
+                <Path data="M -12 0 L 12 0" stroke="#2c3e50" strokeWidth={2.5} />
+                <Path data="M -7 6 L 7 6" stroke="#2c3e50" strokeWidth={2.5} />
+                <Path data="M -2 12 L 2 12" stroke="#2c3e50" strokeWidth={2.5} />
+            </Group>
+        ),
+    },
 };
+
+import useCircuitStore from '../../store/circuitStore';
 
 /**
  * Generic Rendering Wrapper for Circuit components.
@@ -101,6 +119,10 @@ export const CircuitComponent = ({ id, type, gridX, gridY, rotation = 0 }) => {
             y={gridToPixel(gridY)}
             rotation={rotation}
             draggable
+            onClick={(e) => {
+                e.cancelBubble = true;
+                useCircuitStore.getState().setSelectedComponentId(id);
+            }}
             onDragStart={(e) => {
                 const container = e.target.getStage()?.container();
                 if (container) container.style.cursor = 'grab';

@@ -3,10 +3,14 @@ import { Stage, Layer } from 'react-konva';
 import { Grid } from './Grid';
 import { snapToGrid } from './utils';
 import useCircuitStore from '../store/circuitStore';
+import CircuitComponent from '../core/components/ComponentRegistry';
 
 const SimulatorCanvas = () => {
     const stageRef = useRef(null);
     const containerRef = useRef(null);
+
+    // Connect logic map
+    const components = useCircuitStore(s => s.components);
 
     // Viewport tracking for zoom & pan
     const [stageState, setStageState] = useState({ scale: 1, x: 0, y: 0 });
@@ -149,6 +153,16 @@ const SimulatorCanvas = () => {
 
                 <Layer id="component-layer">
                     {/* Main component rendering logic goes here */}
+                    {Object.entries(components).map(([id, comp]) => (
+                        <CircuitComponent
+                            key={id}
+                            id={id}
+                            type={comp.type}
+                            gridX={comp.x}
+                            gridY={comp.y}
+                            rotation={0}
+                        />
+                    ))}
                 </Layer>
 
                 <Layer id="selection-layer">
