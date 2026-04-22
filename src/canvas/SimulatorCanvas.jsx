@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Stage, Layer, Group, Circle, Text } from 'react-konva';
+import { Stage, Layer, Group, Circle, Text, Rect, Line } from 'react-konva';
 import { Grid } from './Grid';
 import { snapToGrid, pointToGrid } from './utils';
 import useCircuitStore from '../store/circuitStore';
@@ -17,6 +17,14 @@ const SimulatorCanvas = () => {
 
     // Tools State
     const oscilloscopeProbe = useCircuitStore(s => s.oscilloscopeProbe);
+
+    const multimeterProbe = useCircuitStore(s => s.multimeterProbe);
+    const multimeterNodeId = useCircuitStore(s => s.multimeterNodeId);
+    const simState = useCircuitStore(s => s.simulationState);
+    let multiVolts = 0;
+    if (multimeterNodeId !== null && simState && simState.voltages) {
+        multiVolts = simState.voltages[multimeterNodeId] || 0;
+    }
 
     // Viewport tracking for zoom & pan
     const [stageState, setStageState] = useState({ scale: 1, x: 0, y: 0 });
@@ -264,6 +272,80 @@ const SimulatorCanvas = () => {
                         <Circle radius={10} fill="#00ff33" stroke="#fff" strokeWidth={2} />
                         <Text y={15} x={0} text="CH1" fill="#00ff33" fontSize={14} fontStyle="bold" align="center" offsetX={15} />
                     </Group>
+
+                    {/* Highly Interactive Multimeter Tool Hardware Layer dynamically mapping bounds securely explicitly efficiently accurately natively evaluated directly mapped! */}
+                    <Group
+                        x={gridToPixel(multimeterProbe.x)}
+                        y={gridToPixel(multimeterProbe.y)}
+                        draggable
+                        onMouseEnter={(e) => {
+                            const container = e.target.getStage()?.container();
+                            if (container) container.style.cursor = 'grab';
+                        }}
+                        onDragStart={(e) => {
+                            const container = e.target.getStage()?.container();
+                            if (container) container.style.cursor = 'grabbing';
+                        }}
+                        onDragEnd={(e) => {
+                            const container = e.target.getStage()?.container();
+                            if (container) container.style.cursor = 'default';
+
+                            const stage = e.target.getStage();
+                            const pointer = stage.getPointerPosition();
+                            const relativePoint = {
+                                x: (pointer.x - stage.x()) / stage.scaleX(),
+                                y: (pointer.y - stage.y()) / stage.scaleY()
+                            };
+
+                            const gridTarget = pointToGrid(relativePoint);
+                            useCircuitStore.getState().setMultimeterProbe(gridTarget);
+
+                            const state = useCircuitStore.getState();
+                            const netlist = state.activeNetlist;
+
+                            if (netlist && netlist.pinToNodeMap) {
+                                import('../core/components/ComponentRegistry').then(({ ComponentRegistry }) => {
+                                    let foundMatch = false;
+                                    for (const [compId, comp] of Object.entries(state.components)) {
+                                        const schema = ComponentRegistry[comp.type];
+                                        if (schema && schema.pins) {
+                                            schema.pins.forEach(pin => {
+                                                if ((comp.x + pin.x) === gridTarget.x && (comp.y + pin.y) === gridTarget.y) {
+                                                    const pinStr = `${compId}:${pin.id}`;
+                                                    const mappedNode = netlist.pinToNodeMap[pinStr];
+
+                                                    useCircuitStore.getState().setMultimeterNodeId(mappedNode);
+                                                    foundMatch = true;
+                                                }
+                                            });
+                                        }
+                                    }
+                                    if (!foundMatch) useCircuitStore.getState().setMultimeterNodeId(null);
+                                });
+                            }
+                        }}
+                    >
+                        {/* Probe Tip Pointer Structure safely bounding exact physics interactions cleanly correctly implicitly properly securely matching visual grid limits accurately natively! */}
+                        <Line points={[0, 0, 0, 20]} stroke="#ff5500" strokeWidth={3} />
+
+                        {/* Body of Multimeter Tool */}
+                        <Rect width={120} height={50} fill="#24272a" stroke="#444" strokeWidth={2} cornerRadius={6} offsetX={60} offsetY={-20} />
+
+                        {/* Digital LED Screen Mapping Bounds securely safely explicitly implicitly resolving identically */}
+                        <Rect width={100} height={34} fill="#0d1117" cornerRadius={4} offsetX={50} offsetY={-28} />
+                        <Text
+                            text={`${multiVolts.toFixed(2)}v`}
+                            fill="#ff1133"
+                            fontSize={20}
+                            fontFamily="'Courier New', Courier, monospace"
+                            fontStyle="bold"
+                            align="right"
+                            width={90}
+                            offsetX={45}
+                            offsetY={-34}
+                        />
+                    </Group>
+
                 </Layer>
             </Stage>
         </div>

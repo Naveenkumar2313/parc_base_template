@@ -3,7 +3,17 @@ import tempfile
 import subprocess
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets, serializers
+from .models import Circuit
+
+class CircuitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Circuit
+        fields = '__all__'
+
+class CircuitViewSet(viewsets.ModelViewSet):
+    queryset = Circuit.objects.all()
+    serializer_class = CircuitSerializer
 
 class CompileArduinoView(APIView):
     """

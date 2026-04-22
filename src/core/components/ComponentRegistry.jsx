@@ -52,14 +52,7 @@ export const PinNode = ({ x, y, id, parentId }) => {
                             end: { x: absX, y: absY, compId: parentId, pinId: id }
                         });
 
-                        // Fire logic engine seamlessly processing native arrays actively resolving MNA variables immediately natively mapping variables efficiently
-                        import('../solver/netlistExtractor').then(({ extractNetlist }) => {
-                            import('../solver/solver').then(({ solveCircuit }) => {
-                                const { components, wires } = useCircuitStore.getState();
-                                const netlist = extractNetlist(components, wires);
-                                solveCircuit(netlist);
-                            });
-                        });
+                        // The engine parses seamlessly via worker
                     } else {
                         // Cancels identical loop clicks naturally mapped
                         state.clearTemporaryWire();
@@ -112,6 +105,37 @@ export const ComponentRegistry = {
 
                 {/* '+' symbol indicator near the positive plate */}
                 <Path data="M 6 -13 L 10 -13 M 8 -15 L 8 -11" stroke="#2c3e50" strokeWidth={1} />
+            </Group>
+        ),
+    },
+    capacitor: {
+        type: 'capacitor',
+        pins: [
+            { id: 'pin1', x: -1, y: 0 },
+            { id: 'pin2', x: 1, y: 0 },
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -5 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -5 -10 L -5 10" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+            </Group>
+        ),
+    },
+    inductor: {
+        type: 'inductor',
+        pins: [
+            { id: 'pin1', x: -1, y: 0 },
+            { id: 'pin2', x: 1, y: 0 },
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -12 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -12 0 C -12 -10, -4 -10, -4 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -4 0 C -4 -10, 4 -10, 4 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 4 0 C 4 -10, 12 -10, 12 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 12 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
             </Group>
         ),
     },

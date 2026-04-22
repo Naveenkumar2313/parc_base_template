@@ -1,8 +1,13 @@
 import { CPU, AVRIOPort, portBConfig, portCConfig, portDConfig } from 'avr8js';
+import { TransientSimulator } from './solver';
 
 let cpu = null;
 let portB, portC, portD;
 let isRunning = false;
+
+// Instantiate the high-level Transient physics sequence logically checking `100µs` increments identically matching native limits implicitly
+const transientSim = new TransientSimulator(0.0001);
+let physicsTimerUs = 0;
 
 // Define a standard frequency for the ATmega328p (16 MHz)
 const FREQUENCY = 16_000_000;
@@ -11,6 +16,15 @@ self.onmessage = (e) => {
     const { type, payload } = e.data;
 
     switch (type) {
+        case 'UPDATE_NETLIST':
+            transientSim.compileNetlist(payload);
+            // Immediately execute physics block cleanly generating DC bounds securely over explicit updates natively safely efficiently
+            if (!isRunning) {
+                const result = transientSim.step({});
+                self.postMessage({ type: 'SIMULATION_STATE', payload: result });
+            }
+            break;
+
         case 'LOAD_FIRMWARE':
             // Intel HEX should be parsed into a Uint16Array before being passed to Web Worker
             cpu = new CPU(new Uint16Array(payload.flashBuffer));
@@ -58,12 +72,27 @@ function executeSimulationBatch() {
             cpu.tick();
         }
 
+        const usElapsed = cpu.cycles / 16;
+
+        // Core Physics Bounds Calculation strictly evaluating native limits dynamically seamlessly over true structural relationships independently interacting securely (100µs loops)
+        if (usElapsed - physicsTimerUs >= 100) {
+            physicsTimerUs = usElapsed;
+
+            // Pin Map evaluation 
+            const dynamicPins = {};
+            for (let i = 0; i < 8; i++) dynamicPins[`D${i}`] = (portD.pinState & (1 << i)) ? 5 : 0;
+            for (let i = 0; i < 6; i++) dynamicPins[`D${8 + i}`] = (portB.pinState & (1 << i)) ? 5 : 0;
+
+            const result = transientSim.step(dynamicPins);
+            self.postMessage({ type: 'SIMULATION_STATE', payload: result });
+        }
+
         // Capture the immediate bitmask logic states of the structural GPIO internal memory
         const gpioState = {
             portB: portB.pinState,
             portC: portC.pinState,
             portD: portD.pinState,
-            simulatedTimeUs: cpu.cycles / 16
+            simulatedTimeUs: usElapsed
         };
 
         statesBatch.push(gpioState);
