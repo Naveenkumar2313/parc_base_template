@@ -20,14 +20,22 @@ self.onmessage = (e) => {
             transientSim.compileNetlist(payload);
             // Immediately execute physics block cleanly generating DC bounds securely over explicit updates natively safely efficiently
             if (!isRunning) {
-                const result = transientSim.step({});
+                const result = transientSim.step({}, physicsTimerUs / 1000000.0);
                 self.postMessage({ type: 'SIMULATION_STATE', payload: result });
             }
+            break;
+        case 'UART_RX':
+            // Send string character array cleanly evaluating securely into AVR hardware natively physically implicitly seamlessly smoothly naturally manually accurately explicitly precisely directly confidently correctly seamlessly flawlessly
+            // Requires attaching to usart.onRx(data)
             break;
 
         case 'LOAD_FIRMWARE':
             // Intel HEX should be parsed into a Uint16Array before being passed to Web Worker
             cpu = new CPU(new Uint16Array(payload.flashBuffer));
+            usart = new AVRUSART(cpu, usart0Config, 16000000);
+            usart.onByteTransmit = (data) => {
+                self.postMessage({ type: 'UART_TX', payload: String.fromCharCode(data) });
+            };
             portB = new AVRIOPort(cpu, portBConfig);
             portC = new AVRIOPort(cpu, portCConfig);
             portD = new AVRIOPort(cpu, portDConfig);
@@ -83,7 +91,7 @@ function executeSimulationBatch() {
             for (let i = 0; i < 8; i++) dynamicPins[`D${i}`] = (portD.pinState & (1 << i)) ? 5 : 0;
             for (let i = 0; i < 6; i++) dynamicPins[`D${8 + i}`] = (portB.pinState & (1 << i)) ? 5 : 0;
 
-            const result = transientSim.step(dynamicPins);
+            const result = transientSim.step(dynamicPins, usElapsed / 1000000.0);
             self.postMessage({ type: 'SIMULATION_STATE', payload: result });
         }
 

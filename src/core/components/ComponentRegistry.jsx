@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Group, Path, Circle, Text } from 'react-konva';
+import { Group, Path, Circle, Text, Rect } from 'react-konva';
 import { gridToPixel } from '../../canvas/utils';
 
 /**
@@ -108,6 +108,21 @@ export const ComponentRegistry = {
             </Group>
         ),
     },
+    functionGenerator: {
+        type: 'functionGenerator',
+        pins: [
+            { id: 'pos', x: 0, y: -1 },
+            { id: 'neg', x: 0, y: 1 },
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Circle x={0} y={0} radius={15} fill="#fafafa" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -8 0 Q -4 -8, 0 0 T 8 0" stroke="#2c3e50" strokeWidth={1.5} fill="transparent" />
+                <Path data="M 0 -20 L 0 -15" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 0 15 L 0 20" stroke="#2c3e50" strokeWidth={2} />
+            </Group>
+        ),
+    },
     capacitor: {
         type: 'capacitor',
         pins: [
@@ -139,6 +154,115 @@ export const ComponentRegistry = {
             </Group>
         ),
     },
+    diode: {
+        type: 'diode',
+        pins: [
+            { id: 'anode', x: -1, y: 0 },
+            { id: 'cathode', x: 1, y: 0 },
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -10 -10 L -10 10 L 5 0 Z" fill="#2c3e50" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+            </Group>
+        ),
+    },
+    bjt_npn: {
+        type: 'bjt_npn',
+        pins: [
+            { id: 'base', x: -1, y: 0 },
+            { id: 'collector', x: 1, y: -1 },
+            { id: 'emitter', x: 1, y: 1 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -5 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -5 -12 L -5 12" stroke="#2c3e50" strokeWidth={4} />
+                <Path data="M -5 -5 L 10 -15 L 20 -15" stroke="#2c3e50" strokeWidth={2} />
+                {/* Emitter with arrow */}
+                <Path data="M -5 5 L 10 15 L 20 15" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 10 L 10 15 L 3 14 Z" fill="#2c3e50" />
+                <Circle x={2} y={0} radius={18} stroke="#2c3e50" strokeWidth={1.5} />
+            </Group>
+        ),
+    },
+    opamp: {
+        type: 'opamp',
+        pins: [
+            { id: 'in_inv', x: -1.5, y: -0.5 },
+            { id: 'in_noninv', x: -1.5, y: 0.5 },
+            { id: 'vcc', x: 0, y: -1.5 },
+            { id: 'vee', x: 0, y: 1.5 },
+            { id: 'out', x: 1.5, y: 0 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -30 -10 L -20 -10" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -30 10 L -20 10" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 20 0 L 30 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 0 -15 L 0 -30" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 0 15 L 0 30" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -20 -20 L -20 20 L 20 0 Z" fill="#fcfcfc" stroke="#2c3e50" strokeWidth={2} />
+                <Text text="-" x={-15} y={-14} fontSize={14} fill="#2c3e50" />
+                <Text text="+" x={-15} y={6} fontSize={14} fill="#2c3e50" />
+            </Group>
+        ),
+    },
+    arduino_uno: {
+        type: 'arduino_uno',
+        pins: [
+            { id: 'D13', x: 2, y: -2 },
+            { id: 'D12', x: 2, y: -1 },
+            { id: 'GND', x: 2, y: 0 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Rect x={-30} y={-50} width={60} height={100} fill="#0d5bc6" cornerRadius={4} />
+                <Text text="UNO" x={-15} y={-5} fill="white" fontSize={14} fontStyle="bold" rotation={-90} />
+                {/* Visual PIN headers */}
+                <Rect x={15} y={-45} width={10} height={90} fill="#222" />
+                <Circle x={20} y={-40} radius={2} fill="silver" />
+                <Circle x={20} y={-20} radius={2} fill="silver" />
+                <Circle x={20} y={0} radius={2} fill="silver" />
+            </Group>
+        ),
+    },
+    and_gate: {
+        type: 'and_gate',
+        pins: [
+            { id: 'in1', x: -1, y: -0.5 },
+            { id: 'in2', x: -1, y: 0.5 },
+            { id: 'out', x: 1.5, y: 0 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 -10 L -20 10 L 0 10 C 12 10, 20 5, 20 0 C 20 -5, 12 -10, 0 -10 Z" fill="#fff" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -20 -10 L -20 10" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 20 0 L 30 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -30 -10 L -20 -10" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -30 10 L -20 10" stroke="#2c3e50" strokeWidth={2} />
+                <Text text="&" x={-10} y={-8} fontSize={16} fill="#2c3e50" fontStyle="bold" />
+            </Group>
+        ),
+    },
+    sensor_dht11: {
+        type: 'sensor_dht11',
+        pins: [
+            { id: 'vcc', x: 0, y: 1 },
+            { id: 'data', x: 0.5, y: 1 },
+            { id: 'gnd', x: 1, y: 1 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Rect x={-10} y={-20} width={40} height={35} fill="#0d98ba" cornerRadius={3} />
+                <Rect x={-5} y={-15} width={30} height={25} fill="#fff" opacity={0.3} cornerRadius={2} />
+                <Text text="DHT11" x={-5} y={-10} fontSize={10} fill="#fff" fontStyle="bold" />
+                <Path data="M 0 15 L 0 20 M 10 15 L 10 20 M 20 15 L 20 20" stroke="#aaa" strokeWidth={3} />
+            </Group>
+        ),
+    },
     ground: {
         type: 'ground',
         pins: [
@@ -163,7 +287,7 @@ import useCircuitStore from '../../store/circuitStore';
  * Generic Rendering Wrapper for Circuit components.
  * Consumes the ComponentRegistry definition to map an abstract instance into Konva context.
  */
-export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0 }) => {
+export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, flip = 1 }) => {
     const schema = ComponentRegistry[type];
     if (!schema) {
         console.warn(`Unknown component type: ${type}`);
@@ -175,6 +299,7 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0 }
             x={gridToPixel(gridX)}
             y={gridToPixel(gridY)}
             rotation={rotation}
+            scaleX={flip}
             draggable
             onClick={(e) => {
                 e.cancelBubble = true;

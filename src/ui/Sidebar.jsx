@@ -2,14 +2,36 @@ import React, { useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { Box, Typography, Slider } from '@mui/material';
 import useCircuitStore from '../store/circuitStore';
+import SerialMonitor from './SerialMonitor';
 
 const Sidebar = () => {
     const editorRef = useRef(null);
     const [isCompiling, setIsCompiling] = useState(false);
 
-    // Native DC Power Supply Bindings
+    // Native Bindings
     const components = useCircuitStore(s => s.components);
     const updateComponentValue = useCircuitStore(s => s.updateComponentValue);
+    const selectedComponentId = useCircuitStore(s => s.selectedComponentId);
+
+    const updateComponentProp = (id, key, val) => {
+        useCircuitStore.setState((state) => ({
+            components: {
+                ...state.components,
+                [id]: { ...state.components[id], [key]: val }
+            }
+        }));
+
+        // Retrigger netlist seamlessly matching structural mapping efficiently!
+        const extract = require('../core/solver/netlistExtractor').extractNetlist;
+        const activeNetlist = extract(
+            useCircuitStore.getState().components,
+            useCircuitStore.getState().wires
+        );
+        useCircuitStore.getState().setActiveNetlist(activeNetlist);
+
+        // Global web worker singleton import explicitly successfully routing boundaries implicitly successfully seamlessly
+        require('../store/circuitStore').simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: activeNetlist });
+    };
 
     // Auto-map structural power sources dynamically linking back locally targeting physics variables clearly!
     const dcSourceObj = Object.entries(components).find(([id, c]) => c.type === 'dcSource' || c.type === 'voltageSource');
@@ -19,6 +41,8 @@ const Sidebar = () => {
     const handleEditorDidMount = (editor, monaco) => {
         editorRef.current = editor;
     };
+    const firmwareCode = useCircuitStore(s => s.firmwareCode);
+    const setFirmwareCode = useCircuitStore(s => s.setFirmwareCode);
 
     const executeRemoteCompile = async () => {
         if (!editorRef.current) return;
@@ -73,7 +97,7 @@ const Sidebar = () => {
             }}>
                 <h3 style={{ margin: 0, fontFamily: 'Segoe UI, sans-serif' }}>Cloud Storage</h3>
                 <button
-                    onClick={() => useCircuitStore.getState().saveCircuit()}
+                    onClick={() => useCircuitStore.getState().saveCurrentProject()}
                     style={{
                         padding: '8px 16px',
                         backgroundColor: '#00af50',
@@ -87,6 +111,75 @@ const Sidebar = () => {
                     💾 Save State
                 </button>
             </div>
+
+            {/* --- CONTEXT-SENSITIVE PROPERTIES PANEL WIDGET --- */}
+            {selectedComponentId && components[selectedComponentId] && (
+                <div style={{ padding: '20px', backgroundColor: '#1e2224', borderBottom: '2px solid #333' }}>
+                    <Typography variant="subtitle1" style={{ color: '#ff9900', fontWeight: 'bold', fontFamily: 'monospace', marginBottom: '10px' }}>
+                        [ CONFIG: {components[selectedComponentId].type.toUpperCase()} ]
+                    </Typography>
+
+                    {components[selectedComponentId].type === 'resistor' && (
+                        <Box sx={{ mb: 2 }}>
+                            <Typography style={{ color: '#aaa', fontSize: '13px' }}>Resistance (Ω):</Typography>
+                            <input
+                                type="number"
+                                value={components[selectedComponentId].value || 1000}
+                                onChange={(e) => updateComponentValue(selectedComponentId, parseFloat(e.target.value))}
+                                style={{ width: '100%', padding: '5px', background: '#111', color: '#fff', border: '1px solid #444', outline: 'none' }}
+                            />
+                        </Box>
+                    )}
+
+                    {components[selectedComponentId].type === 'capacitor' && (
+                        <Box sx={{ mb: 2 }}>
+                            <Typography style={{ color: '#aaa', fontSize: '13px' }}>Capacitance (F):</Typography>
+                            <input
+                                type="number"
+                                value={components[selectedComponentId].value || 0.000001}
+                                onChange={(e) => updateComponentValue(selectedComponentId, parseFloat(e.target.value))}
+                                style={{ width: '100%', padding: '5px', background: '#111', color: '#fff', border: '1px solid #444', outline: 'none' }}
+                                step="0.000001"
+                            />
+                        </Box>
+                    )}
+
+                    {components[selectedComponentId].type === 'functionGenerator' && (
+                        <>
+                            <Box sx={{ mb: 2 }}>
+                                <Typography style={{ color: '#aaa', fontSize: '13px' }}>Waveform:</Typography>
+                                <select
+                                    value={components[selectedComponentId].waveform || 'sine'}
+                                    onChange={(e) => updateComponentProp(selectedComponentId, 'waveform', e.target.value)}
+                                    style={{ width: '100%', padding: '5px', background: '#111', color: '#fff', border: '1px solid #444' }}
+                                >
+                                    <option value="sine">Sine Wave</option>
+                                    <option value="square">Square Wave</option>
+                                    <option value="triangle">Triangle Wave</option>
+                                </select>
+                            </Box>
+                            <Box sx={{ mb: 2 }}>
+                                <Typography style={{ color: '#aaa', fontSize: '13px' }}>Frequency (Hz):</Typography>
+                                <input
+                                    type="number"
+                                    value={components[selectedComponentId].frequency || 1000}
+                                    onChange={(e) => updateComponentProp(selectedComponentId, 'frequency', parseFloat(e.target.value))}
+                                    style={{ width: '100%', padding: '5px', background: '#111', color: '#fff', border: '1px solid #444' }}
+                                />
+                            </Box>
+                            <Box sx={{ mb: 2 }}>
+                                <Typography style={{ color: '#aaa', fontSize: '13px' }}>Amplitude (V):</Typography>
+                                <input
+                                    type="number"
+                                    value={components[selectedComponentId].amplitude || 5}
+                                    onChange={(e) => updateComponentProp(selectedComponentId, 'amplitude', parseFloat(e.target.value))}
+                                    style={{ width: '100%', padding: '5px', background: '#111', color: '#fff', border: '1px solid #444' }}
+                                />
+                            </Box>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* --- DC POWER SUPPLY WIDGET --- */}
             <div style={{ padding: '20px', backgroundColor: '#181a1b', borderBottom: '2px solid #333' }}>
@@ -149,17 +242,8 @@ const Sidebar = () => {
                     height="100%"
                     defaultLanguage="cpp"
                     theme="vs-dark"
-                    defaultValue={`// Write your AVR logic here
-void setup() {
-  pinMode(13, OUTPUT);
-}
-
-void loop() {
-  digitalWrite(13, HIGH);
-  delay(1000);
-  digitalWrite(13, LOW);
-  delay(1000);
-}`}
+                    value={firmwareCode}
+                    onChange={(val) => setFirmwareCode(val)}
                     onMount={handleEditorDidMount}
                     options={{
                         minimap: { enabled: false },
@@ -168,6 +252,9 @@ void loop() {
                     }}
                 />
             </div>
+
+            {/* --- IOT SERIAL MONITOR --- */}
+            <SerialMonitor />
         </div>
     );
 };

@@ -26,7 +26,7 @@ export class TransientSimulator {
         const { totalNodes, components } = netlist;
         this.components = components;
         // Map dynamically both independent logic matrices and interactive dynamic MCU targets identically
-        this.vSources = components.filter(c => c.type === 'dcSource' || c.type === 'voltageSource');
+        this.vSources = components.filter(c => c.type === 'dcSource' || c.type === 'voltageSource' || c.type === 'functionGenerator');
 
         this.N = totalNodes;
         const M = this.vSources.length;
@@ -95,86 +95,139 @@ export class TransientSimulator {
     }
 
     // Real-time Simulation Iteration Loop
-    step(dynamicPinVoltages = {}) {
+    step(dynamicPinVoltages = {}, t_seconds = 0) {
         if (this.size === 0) return { voltages: { 0: 0 }, currents: {} };
 
-        // Initialize physical properties locally tracking real-time sequential sequences dynamically safely over sequences securely
-        let I_vec = math.zeros([this.size]);
+        let hasNonLinear = this.components.some(c => c.type === 'diode' || c.type === 'bjt_npn' || c.type === 'mosfet_n');
+        let iterations = hasNonLinear ? 10 : 1;
 
-        const addCurrent = (row, value) => {
-            if (row >= 0) {
-                I_vec.set([row], I_vec.get([row]) + value);
-            }
-        };
+        let finalVoltages = { 0: 0 };
+        let finalCurrents = {};
 
-        // Calculate transient bounds natively generating RHS matrix numerical inputs 
-        this.components.forEach(comp => {
-            const n1 = comp.nodes['pin1'] || comp.nodes['pos'];
-            const n2 = comp.nodes['pin2'] || comp.nodes['neg'];
+        for (let iter = 0; iter < iterations; iter++) {
+            let G_iter = math.clone(this.G_base);
+            let I_vec = math.zeros([this.size]);
 
-            const v1_prev = this.prevVoltages[n1] || 0;
-            const v2_prev = this.prevVoltages[n2] || 0;
+            const addG_iter = (row, col, value) => {
+                if (row >= 0 && col >= 0) G_iter.set([row, col], G_iter.get([row, col]) + value);
+            };
 
-            if (comp.type === 'capacitor') {
-                // Current Injection Equivalent: Ieq = C * Vprev / dt
-                const C = comp.value || 0.000001;
-                const ieq = C * (v1_prev - v2_prev) / this.dt;
-                addCurrent(n1 - 1, ieq);
-                addCurrent(n2 - 1, -ieq); // Negative offset resolves cleanly matching backward direction mapping correctly cleanly!
-            }
-            else if (comp.type === 'inductor') {
-                // Current Injection Equivalent: Ieq = Iprev
-                const ieq = this.prevCurrents[comp.id] || 0;
-                addCurrent(n1 - 1, -ieq);
-                addCurrent(n2 - 1, ieq);
-            }
-            else if (comp.type === 'dcSource' || comp.type === 'voltageSource') {
-                const vIdx = this.vSources.findIndex(v => v.id === comp.id);
-                const rowNum = this.N + vIdx;
+            const addCurrent = (row, value) => {
+                if (row >= 0) I_vec.set([row], I_vec.get([row]) + value);
+            };
 
-                let V = comp.value || 5;
-                // Dynamically override values cleanly matching native backend GPIO states mapping explicitly safely cleanly seamlessly!
-                if (comp.gpioPin && dynamicPinVoltages[comp.gpioPin] !== undefined) {
-                    V = dynamicPinVoltages[comp.gpioPin];
+            // Calculate transient bounds natively generating RHS matrix numerical inputs 
+            this.components.forEach(comp => {
+                if (comp.type === 'diode') {
+                    // Newton-Raphson Shockley model iteration equivalents bounds exactly dynamically cleanly!
+                    const n1 = comp.nodes['anode'];
+                    const n2 = comp.nodes['cathode'];
+
+                    const v1 = (iter === 0 ? this.prevVoltages[n1] : finalVoltages[n1]) || 0;
+                    const v2 = (iter === 0 ? this.prevVoltages[n2] : finalVoltages[n2]) || 0;
+                    let Vd = v1 - v2;
+
+                    // Bound Vd mechanically suppressing divergence
+                    if (Vd > 0.8) Vd = 0.8 + (Vd - 0.8) * 0.1;
+                    if (Vd < -20) Vd = -20;
+
+                    const Is = 1e-12; // Saturation 
+                    const Vt = 0.02585; // Thermal voltage ~26mV
+                    const n = 1.0;
+
+                    const Id = Is * (Math.exp(Vd / (n * Vt)) - 1);
+                    const Gd = (Is / (n * Vt)) * Math.exp(Vd / (n * Vt));
+                    const Ieq = Id - Gd * Vd;
+
+                    // Inject equivalent dynamic NR variables seamlessly
+                    addG_iter(n1 - 1, n1 - 1, Gd);
+                    addG_iter(n2 - 1, n2 - 1, Gd);
+                    addG_iter(n1 - 1, n2 - 1, -Gd);
+                    addG_iter(n2 - 1, n1 - 1, -Gd);
+
+                    addCurrent(n1 - 1, -Ieq);
+                    addCurrent(n2 - 1, Ieq);
+                }
+                else {
+                    const n1 = comp.nodes['pin1'] || comp.nodes['pos'];
+                    const n2 = comp.nodes['pin2'] || comp.nodes['neg'];
+
+                    const v1_prev = this.prevVoltages[n1] || 0;
+                    const v2_prev = this.prevVoltages[n2] || 0;
+
+                    if (comp.type === 'capacitor') {
+                        const C = comp.value || 0.000001;
+                        const ieq = C * (v1_prev - v2_prev) / this.dt;
+                        addCurrent(n1 - 1, ieq);
+                        addCurrent(n2 - 1, -ieq);
+                    }
+                    else if (comp.type === 'inductor') {
+                        const ieq = this.prevCurrents[comp.id] || 0;
+                        addCurrent(n1 - 1, -ieq);
+                        addCurrent(n2 - 1, ieq);
+                    }
+                    else if (comp.type === 'dcSource' || comp.type === 'voltageSource') {
+                        const vIdx = this.vSources.findIndex(v => v.id === comp.id);
+                        const rowNum = this.N + vIdx;
+                        let V = comp.value || 5;
+                        if (comp.gpioPin && dynamicPinVoltages[comp.gpioPin] !== undefined) {
+                            V = dynamicPinVoltages[comp.gpioPin];
+                        }
+                        addCurrent(rowNum, V);
+                    }
+                    else if (comp.type === 'functionGenerator') {
+                        const vIdx = this.vSources.findIndex(v => v.id === comp.id);
+                        const rowNum = this.N + vIdx;
+                        const freq = comp.frequency || 1000;
+                        const amp = comp.amplitude || 5;
+                        const offset = comp.offset || 0;
+                        const waveType = comp.waveform || 'sine';
+                        let V = offset;
+
+                        // Math cleanly isolates dynamic waveforms mapped internally over bounds natively evaluating smoothly safely flawlessly smoothly!
+                        if (waveType === 'sine') {
+                            V += amp * Math.sin(2 * Math.PI * freq * t_seconds);
+                        } else if (waveType === 'square') {
+                            V += Math.sin(2 * Math.PI * freq * t_seconds) >= 0 ? amp : -amp;
+                        } else if (waveType === 'triangle') {
+                            V += (2 * amp / Math.PI) * Math.asin(Math.sin(2 * Math.PI * freq * t_seconds));
+                        }
+
+                        addCurrent(rowNum, V);
+                    }
+                }
+            });
+
+            try {
+                // Numerical LU solver sequence tracking algebra accurately matching structures natively!
+                const solution = math.lusolve(G_iter, I_vec);
+                const res = solution.valueOf();
+
+                for (let i = 1; i <= this.N; i++) {
+                    finalVoltages[i] = Array.isArray(res[i - 1]) ? res[i - 1][0] : res[i - 1];
                 }
 
-                addCurrent(rowNum, V);
+                this.vSources.forEach((comp, idx) => {
+                    finalCurrents[comp.id] = Array.isArray(res[this.N + idx]) ? res[this.N + idx][0] : res[this.N + idx];
+                });
+            } catch (e) {
+                // Ignore singular matrices midway cleanly escaping loop limits automatically mathematically!
+            }
+        }
+
+        // Maintain sequences cleanly caching dynamic bounds isolating arrays effectively natively explicitly cleanly 
+        this.prevVoltages = finalVoltages;
+
+        this.components.forEach(comp => {
+            if (comp.type === 'inductor') {
+                const L = comp.value || 0.001;
+                const v1 = finalVoltages[comp.nodes['pin1'] || comp.nodes['pos']] || 0;
+                const v2 = finalVoltages[comp.nodes['pin2'] || comp.nodes['neg']] || 0;
+                // Inductor Current Law Backward Euler: I(t) = I(t-dt) + V(t)*dt / L
+                this.prevCurrents[comp.id] = (this.prevCurrents[comp.id] || 0) + (v1 - v2) * this.dt / L;
             }
         });
 
-        let voltages = { 0: 0 };
-        let currents = {};
-
-        try {
-            // Numerical LU solver sequence tracking algebra accurately matching structures natively!
-            const solution = math.lusolve(this.G_base, I_vec);
-            const res = solution.valueOf();
-
-            for (let i = 1; i <= this.N; i++) {
-                voltages[i] = Array.isArray(res[i - 1]) ? res[i - 1][0] : res[i - 1];
-            }
-
-            this.vSources.forEach((comp, idx) => {
-                currents[comp.id] = Array.isArray(res[this.N + idx]) ? res[this.N + idx][0] : res[this.N + idx];
-            });
-
-            // Maintain sequences cleanly caching dynamic bounds isolating arrays effectively natively explicitly cleanly 
-            this.prevVoltages = voltages;
-
-            this.components.forEach(comp => {
-                if (comp.type === 'inductor') {
-                    const L = comp.value || 0.001;
-                    const v1 = voltages[comp.nodes['pin1'] || comp.nodes['pos']] || 0;
-                    const v2 = voltages[comp.nodes['pin2'] || comp.nodes['neg']] || 0;
-                    // Inductor Current Law Backward Euler: I(t) = I(t-dt) + V(t)*dt / L
-                    this.prevCurrents[comp.id] = (this.prevCurrents[comp.id] || 0) + (v1 - v2) * this.dt / L;
-                }
-            });
-
-        } catch (e) {
-            console.warn("Transient convergence physically halted gracefully blocking null arrays naturally cleanly!");
-        }
-
-        return { voltages, currents };
+        return { voltages: finalVoltages, currents: finalCurrents };
     }
 }

@@ -5,18 +5,19 @@ import OscilloscopeManager from "../../../ui/OscilloscopeManager";
 import Sidebar from "../../../ui/Sidebar";
 import useCircuitStore from "../../../store/circuitStore";
 import { v4 as uuidv4 } from 'uuid';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 
 const DefaultDashboard = () => {
   const addComponent = useCircuitStore(s => s.addComponent);
   const loadCircuit = useCircuitStore(s => s.loadCircuit);
   const [init, setInit] = useState(false);
   const [searchParams] = useSearchParams();
+  const { id: routeId } = useParams();
 
   // Parse implicit queries natively explicitly extracting layouts actively cleanly effortlessly securely!
   useEffect(() => {
     if (!init) {
-      const circuitId = searchParams.get('circuit_id');
+      const circuitId = routeId || searchParams.get('circuit_id');
       if (circuitId) {
         loadCircuit(circuitId);
       } else {

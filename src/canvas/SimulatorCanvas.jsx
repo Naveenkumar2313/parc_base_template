@@ -52,6 +52,19 @@ const SimulatorCanvas = () => {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
+
+            // Phase 7 Component Configuration: Component rotation and flip
+            const targetId = useCircuitStore.getState().selectedComponentId;
+            if (targetId && !e.repeat) {
+                if (e.code === 'KeyR') {
+                    const currentRot = useCircuitStore.getState().components[targetId].rotation || 0;
+                    useCircuitStore.getState().updateComponentProp(targetId, 'rotation', (currentRot + 90) % 360);
+                }
+                if (e.code === 'KeyF') {
+                    const currentFlip = useCircuitStore.getState().components[targetId].flip || 1;
+                    useCircuitStore.getState().updateComponentProp(targetId, 'flip', currentFlip * -1);
+                }
+            }
         };
         const handleKeyUp = (e) => {
             if (e.code === 'Space') {
@@ -207,7 +220,8 @@ const SimulatorCanvas = () => {
                             value={comp.value}
                             gridX={comp.x}
                             gridY={comp.y}
-                            rotation={0}
+                            rotation={comp.rotation || 0}
+                            flip={comp.flip || 1}
                         />
                     ))}
                 </Layer>

@@ -11,6 +11,8 @@ const useCircuitStore = create((set, get) => {
     const { type, payload } = e.data;
     if (type === 'SIMULATION_STATE') {
       get().updateSimulationState(payload);
+    } else if (type === 'UART_TX') {
+      set(s => ({ serialBuffer: s.serialBuffer + payload }));
     }
   };
 
@@ -25,6 +27,10 @@ const useCircuitStore = create((set, get) => {
     // Real-time Engine Processing Payload
     simulationState: { voltages: {}, currents: {} },
     activeNetlist: null,
+
+    // Serial Data Stream
+    serialBuffer: "",
+    clearSerialBuffer: () => set({ serialBuffer: "" }),
 
     // Tool Interfaces
     oscilloscopeProbe: { x: -2, y: -2 },
@@ -57,11 +63,26 @@ const useCircuitStore = create((set, get) => {
         }
       }));
 
-      // Evaluate physics sequentially securely routing logic limits explicitly generating safe structures out mapping natively dynamically cleanly directly natively securely!
       const currentState = get();
       const activeNetlist = extractNetlist(currentState.components, currentState.wires);
       set({ activeNetlist });
       simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: activeNetlist });
+      get().broadcastChange();
+    },
+
+    updateComponentProp: (id, key, val) => {
+      set((state) => ({
+        components: {
+          ...state.components,
+          [id]: { ...state.components[id], [key]: val }
+        }
+      }));
+
+      const currentState = get();
+      const activeNetlist = extractNetlist(currentState.components, currentState.wires);
+      set({ activeNetlist });
+      simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: activeNetlist });
+      get().broadcastChange();
     },
 
     // Wire Interaction Lifecycle mapping
@@ -69,10 +90,14 @@ const useCircuitStore = create((set, get) => {
 
     commitWire: (completedWire) => set((state) => {
       // When completedWire is successfully bound natively between two endpoints, clear cache and save 
-      return {
+      const newState = {
         wires: [...state.wires, completedWire],
         temporaryWire: null
       };
+
+      // Delay explicitly broadcasting until state has resolved internally
+      setTimeout(() => get().broadcastChange(), 0);
+      return newState;
     }),
 
     clearTemporaryWire: () => set({ temporaryWire: null }),
@@ -84,14 +109,54 @@ const useCircuitStore = create((set, get) => {
 
     updateSimulationState: (simulationState) => set({ simulationState }),
 
-    saveCircuit: async () => {
+    wsConn: null,
+    connectCollaboration: (circuitId) => {
+      const state = get();
+      if (state.wsConn) state.wsConn.close();
+      const ws = new WebSocket(`ws://localhost:8000/ws/circuits/${circuitId}/`);
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data && data.components && data.wires) {
+          set({ components: data.components, wires: data.wires });
+          const activeNetlist = extractNetlist(data.components, data.wires);
+          set({ activeNetlist });
+          simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: activeNetlist });
+        }
+      };
+      set({ wsConn: ws });
+    },
+    broadcastChange: () => {
+      const state = get();
+      if (state.wsConn && state.wsConn.readyState === WebSocket.OPEN) {
+        state.wsConn.send(JSON.stringify({
+          components: state.components,
+          wires: state.wires
+        }));
+      }
+    },
+
+    firmwareCode: `// Write your AVR logic here
+void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}`,
+    setFirmwareCode: (code) => set({ firmwareCode: code }),
+
+    saveCurrentProject: async () => {
       const currentState = get();
       const payload = {
         name: `Circuit-${new Date().toISOString().split('T')[0]}`,
         state: {
           components: currentState.components,
           wires: currentState.wires,
-          nodes: currentState.nodes
+          nodes: currentState.nodes,
+          firmwareCode: currentState.firmwareCode
         }
       };
       try {
@@ -102,8 +167,9 @@ const useCircuitStore = create((set, get) => {
         });
         const data = await response.json();
         alert(`Successfully saved to database! Sharable Circuit ID: ${data.id}`);
-        // Natively mutate the URL without reloading parsing structural states cleanly securely successfully!
-        window.history.pushState(null, '', `?circuit_id=${data.id}`);
+
+        // Push standardized cleanly formatted React Router endpoints flawlessly
+        window.history.pushState(null, '', `/project/${data.id}`);
       } catch (e) {
         console.error("Save Circuit Failed:", e);
         alert("Save failed! Please check Django connectivity.");
@@ -119,12 +185,15 @@ const useCircuitStore = create((set, get) => {
           set({
             components: data.state.components || {},
             wires: data.state.wires || [],
-            nodes: data.state.nodes || {}
+            nodes: data.state.nodes || {},
+            firmwareCode: data.state.firmwareCode || get().firmwareCode
           });
           // Fire initialization hook locally binding variables securely
           const activeNetlist = extractNetlist(data.state.components || {}, data.state.wires || []);
           set({ activeNetlist });
           simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: activeNetlist });
+
+          get().connectCollaboration(id);
         }
       } catch (e) {
         console.error("Load Circuit Failed:", e);
