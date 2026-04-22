@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Group, Circle, Text, Rect, Line } from 'react-konva';
 import { Grid } from './Grid';
-import { snapToGrid, pointToGrid } from './utils';
+import { snapToGrid, pointToGrid, gridToPixel } from './utils';
 import useCircuitStore from '../store/circuitStore';
 import CircuitComponent from '../core/components/ComponentRegistry';
 import { Wire, JunctionDots } from './Wire/Wire';
