@@ -98,7 +98,7 @@ export class TransientSimulator {
     step(dynamicPinVoltages = {}, t_seconds = 0) {
         if (this.size === 0) return { voltages: { 0: 0 }, currents: {} };
 
-        let hasNonLinear = this.components.some(c => c.type === 'diode' || c.type === 'bjt_npn' || c.type === 'mosfet_n');
+        let hasNonLinear = this.components.some(c => c.type === 'diode' || c.type === 'bjt_npn' || c.type === 'bjt_pnp' || c.type === 'mosfet_n');
         let iterations = hasNonLinear ? 10 : 1;
 
         let finalVoltages = { 0: 0 };
@@ -147,6 +147,118 @@ export class TransientSimulator {
 
                     addCurrent(n1 - 1, -Ieq);
                     addCurrent(n2 - 1, Ieq);
+                }
+                else if (comp.type === 'bjt_npn' || comp.type === 'bjt_pnp') {
+                    const isNPN = comp.type === 'bjt_npn';
+                    const sign = isNPN ? 1 : -1;
+                    const nb = comp.nodes['base'];
+                    const nc = comp.nodes['collector'];
+                    const ne = comp.nodes['emitter'];
+
+                    const vb = (iter === 0 ? this.prevVoltages[nb] : finalVoltages[nb]) || 0;
+                    const vc = (iter === 0 ? this.prevVoltages[nc] : finalVoltages[nc]) || 0;
+                    const ve = (iter === 0 ? this.prevVoltages[ne] : finalVoltages[ne]) || 0;
+
+                    let vbe = sign * (vb - ve);
+                    let vbc = sign * (vb - vc);
+
+                    // Bound mechanically suppressing divergence correctly structurally mapping properly
+                    if (vbe > 0.8) vbe = 0.8 + (vbe - 0.8) * 0.1;
+                    if (vbe < -20) vbe = -20;
+                    if (vbc > 0.8) vbc = 0.8 + (vbc - 0.8) * 0.1;
+                    if (vbc < -20) vbc = -20;
+
+                    const Is = 1e-14;
+                    const Vt = 0.02585;
+                    const alphaF = 0.99;
+                    const alphaR = 0.5;
+
+                    const Ibe = (Is / alphaF) * (Math.exp(vbe / Vt) - 1);
+                    const Ibc = (Is / alphaR) * (Math.exp(vbc / Vt) - 1);
+                    const Ict = Is * (Math.exp(vbe / Vt) - Math.exp(vbc / Vt));
+
+                    const gBE = (Is / (alphaF * Vt)) * Math.exp(vbe / Vt);
+                    const gBC = (Is / (alphaR * Vt)) * Math.exp(vbc / Vt);
+                    const gmF = (Is / Vt) * Math.exp(vbe / Vt);
+                    const gmR = (Is / Vt) * Math.exp(vbc / Vt);
+
+                    const IeqBE = Ibe - gBE * vbe;
+                    const IeqBC = Ibc - gBC * vbc;
+                    const IeqCT = Ict - gmF * vbe + gmR * vbc;
+
+                    // Base-Emitter Diode Equivalent
+                    addG_iter(nb - 1, nb - 1, gBE);
+                    addG_iter(ne - 1, ne - 1, gBE);
+                    addG_iter(nb - 1, ne - 1, -gBE);
+                    addG_iter(ne - 1, nb - 1, -gBE);
+                    addCurrent(nb - 1, sign * -IeqBE);
+                    addCurrent(ne - 1, sign * IeqBE);
+
+                    // Base-Collector Diode Equivalent
+                    addG_iter(nb - 1, nb - 1, gBC);
+                    addG_iter(nc - 1, nc - 1, gBC);
+                    addG_iter(nb - 1, nc - 1, -gBC);
+                    addG_iter(nc - 1, nb - 1, -gBC);
+                    addCurrent(nb - 1, sign * -IeqBC);
+                    addCurrent(nc - 1, sign * IeqBC);
+
+                    // Controlled Current Source Component
+                    addG_iter(nc - 1, nb - 1, sign * gmF);
+                    addG_iter(nc - 1, ne - 1, sign * -gmF);
+                    addG_iter(ne - 1, nb - 1, sign * -gmF);
+                    addG_iter(ne - 1, ne - 1, sign * gmF);
+
+                    addG_iter(nc - 1, nb - 1, sign * -gmR);
+                    addG_iter(nc - 1, nc - 1, sign * gmR);
+                    addG_iter(ne - 1, nb - 1, sign * gmR);
+                    addG_iter(ne - 1, nc - 1, sign * -gmR);
+
+                    addCurrent(nc - 1, sign * -IeqCT);
+                    addCurrent(ne - 1, sign * IeqCT);
+                }
+                else if (comp.type === 'mosfet_n') {
+                    const ng = comp.nodes['gate'];
+                    const nd = comp.nodes['drain'];
+                    const ns = comp.nodes['source'];
+
+                    const vg = (iter === 0 ? this.prevVoltages[ng] : finalVoltages[ng]) || 0;
+                    const vd = (iter === 0 ? this.prevVoltages[nd] : finalVoltages[nd]) || 0;
+                    const vs = (iter === 0 ? this.prevVoltages[ns] : finalVoltages[ns]) || 0;
+
+                    const vgs = vg - vs;
+                    const vds = vd - vs;
+
+                    const Vth = 1.5;
+                    const kn = 0.05; // 50mA/V^2
+                    const lambda = 0.01;
+                    let id = 0, gm = 0, gds = 0;
+
+                    if (vgs > Vth) {
+                        if (vds <= vgs - Vth) {
+                            // Linear (Triode) Region
+                            id = kn * ((vgs - Vth) * vds - 0.5 * vds * vds);
+                            gm = kn * vds;
+                            gds = kn * (vgs - Vth - vds);
+                        } else {
+                            // Saturation (Active) Region
+                            id = 0.5 * kn * (vgs - Vth) * (vgs - Vth) * (1 + lambda * vds);
+                            gm = kn * (vgs - Vth) * (1 + lambda * vds);
+                            gds = 0.5 * kn * (vgs - Vth) * (vgs - Vth) * lambda;
+                        }
+                    }
+
+                    const ieq = id - gm * vgs - gds * vds;
+
+                    addG_iter(nd - 1, ng - 1, gm);
+                    addG_iter(nd - 1, ns - 1, -gm - gds);
+                    addG_iter(nd - 1, nd - 1, gds);
+
+                    addG_iter(ns - 1, ng - 1, -gm);
+                    addG_iter(ns - 1, ns - 1, gm + gds);
+                    addG_iter(ns - 1, nd - 1, -gds);
+
+                    addCurrent(nd - 1, -ieq);
+                    addCurrent(ns - 1, ieq);
                 }
                 else {
                     const n1 = comp.nodes['pin1'] || comp.nodes['pos'];

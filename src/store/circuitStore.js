@@ -85,6 +85,21 @@ const useCircuitStore = create((set, get) => {
       get().broadcastChange();
     },
 
+    updateComponentPosition: (id, x, y) => {
+      set((state) => ({
+        components: {
+          ...state.components,
+          [id]: { ...state.components[id], x, y }
+        }
+      }));
+
+      const currentState = get();
+      const activeNetlist = extractNetlist(currentState.components, currentState.wires);
+      set({ activeNetlist });
+      simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: activeNetlist });
+      get().broadcastChange();
+    },
+
     // Wire Interaction Lifecycle mapping
     setTemporaryWire: (wire) => set({ temporaryWire: wire }),
 
@@ -152,11 +167,14 @@ void loop() {
       const currentState = get();
       const payload = {
         name: `Circuit-${new Date().toISOString().split('T')[0]}`,
+        description: "Cloud saved simulation session.",
+        is_public: true,
         state: {
           components: currentState.components,
           wires: currentState.wires,
           nodes: currentState.nodes,
-          firmwareCode: currentState.firmwareCode
+          firmwareCode: currentState.firmwareCode,
+          timestamp: new Date().toISOString()
         }
       };
       try {

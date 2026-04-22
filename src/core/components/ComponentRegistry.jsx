@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Group, Path, Circle, Text, Rect } from 'react-konva';
-import { gridToPixel } from '../../canvas/utils';
+import { gridToPixel, pixelToGrid } from '../../canvas/utils';
 
 /**
  * Interactive Pin component handling "invisible" hover state
@@ -188,6 +188,53 @@ export const ComponentRegistry = {
             </Group>
         ),
     },
+    bjt_pnp: {
+        type: 'bjt_pnp',
+        pins: [
+            { id: 'base', x: -1, y: 0 },
+            { id: 'collector', x: 1, y: 1 },
+            { id: 'emitter', x: 1, y: -1 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -5 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -5 -12 L -5 12" stroke="#2c3e50" strokeWidth={4} />
+                <Path data="M -5 -5 L 10 -15 L 20 -15" stroke="#2c3e50" strokeWidth={2} />
+                {/* Emitter with inward arrow */}
+                <Path data="M -5 5 L 10 15 L 20 15" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 1 0 L 8 -6 L 1 -9 Z" fill="#2c3e50" />
+                <Circle x={2} y={0} radius={18} stroke="#2c3e50" strokeWidth={1.5} />
+            </Group>
+        ),
+    },
+    mosfet_n: {
+        type: 'mosfet_n',
+        pins: [
+            { id: 'gate', x: -1, y: 0 },
+            { id: 'drain', x: 1, y: -1 },
+            { id: 'source', x: 1, y: 1 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                {/* Gate */}
+                <Path data="M -20 0 L -5 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -5 -12 L -5 12" stroke="#2c3e50" strokeWidth={2} />
+
+                {/* Channel */}
+                <Path data="M 0 -10 L 0 -4" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 0 -3 L 0 3" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 0 4 L 0 10" stroke="#2c3e50" strokeWidth={3} />
+
+                {/* Drain */}
+                <Path data="M 0 -8 L 10 -8 L 10 -20 L 20 -20" stroke="#2c3e50" strokeWidth={2} />
+
+                {/* Source */}
+                <Path data="M 0 8 L 10 8 L 10 20 L 20 20" stroke="#2c3e50" strokeWidth={2} />
+
+                <Circle x={5} y={0} radius={18} stroke="#2c3e50" strokeWidth={1.5} />
+            </Group>
+        ),
+    },
     opamp: {
         type: 'opamp',
         pins: [
@@ -312,7 +359,11 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
             onDragEnd={(e) => {
                 const container = e.target.getStage()?.container();
                 if (container) container.style.cursor = 'default';
-                // Trigger snapping logic update back into Zustand here
+
+                // Extract Konva group pixel constraints natively calculating bounds accurately mapping physics naturally cleanly identically properly cleanly identically mapping coordinates dynamically seamlessly elegantly mathematically precisely efficiently matching logic safely correctly
+                const newX = pixelToGrid(e.target.x());
+                const newY = pixelToGrid(e.target.y());
+                useCircuitStore.getState().updateComponentPosition(id, newX, newY);
             }}
         >
             {/* 1. Component Shape Constraints */}
