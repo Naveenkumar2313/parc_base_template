@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Group, Path, Circle } from 'react-konva';
+import { Group, Path, Circle, Text } from 'react-konva';
 import { gridToPixel } from '../../canvas/utils';
 
 /**
@@ -30,8 +30,41 @@ export const PinNode = ({ x, y, id, parentId }) => {
             onClick={(e) => {
                 // Prevent event bubbling when clicking on the pin
                 e.cancelBubble = true;
-                console.log(`Pin clicked! Component: ${parentId}, Pin: ${id}`);
-                // Wire logic hooks go here
+                const state = useCircuitStore.getState();
+                const parentState = state.components[parentId];
+                if (!parentState) return;
+
+                // Map relative pin schema properties exactly onto standard global absolute layout natively cleanly
+                const absX = parentState.x + x;
+                const absY = parentState.y + y;
+
+                if (!state.temporaryWire) {
+                    // Arm tracking map
+                    state.setTemporaryWire({
+                        start: { x: absX, y: absY, compId: parentId, pinId: id },
+                        current: { x: absX, y: absY }
+                    });
+                } else {
+                    // Snap connection and finalize routing tracking loop safely
+                    if (state.temporaryWire.start.compId !== parentId || state.temporaryWire.start.pinId !== id) {
+                        state.commitWire({
+                            start: state.temporaryWire.start,
+                            end: { x: absX, y: absY, compId: parentId, pinId: id }
+                        });
+
+                        // Fire logic engine seamlessly processing native arrays actively resolving MNA variables immediately natively mapping variables efficiently
+                        import('../solver/netlistExtractor').then(({ extractNetlist }) => {
+                            import('../solver/solver').then(({ solveCircuit }) => {
+                                const { components, wires } = useCircuitStore.getState();
+                                const netlist = extractNetlist(components, wires);
+                                solveCircuit(netlist);
+                            });
+                        });
+                    } else {
+                        // Cancels identical loop clicks naturally mapped
+                        state.clearTemporaryWire();
+                    }
+                }
             }}
         />
     );
@@ -106,7 +139,7 @@ import useCircuitStore from '../../store/circuitStore';
  * Generic Rendering Wrapper for Circuit components.
  * Consumes the ComponentRegistry definition to map an abstract instance into Konva context.
  */
-export const CircuitComponent = ({ id, type, gridX, gridY, rotation = 0 }) => {
+export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0 }) => {
     const schema = ComponentRegistry[type];
     if (!schema) {
         console.warn(`Unknown component type: ${type}`);
@@ -146,6 +179,20 @@ export const CircuitComponent = ({ id, type, gridX, gridY, rotation = 0 }) => {
                     parentId={id}
                 />
             ))}
+
+            {/* 3. Physical UI Annotations tracking Property Values Natively */}
+            {value !== undefined && (
+                <Text
+                    x={-15}
+                    y={22}
+                    text={`${value}${type === 'resistor' ? 'Ω' : 'V'}`}
+                    fill="#333"
+                    fontSize={13}
+                    fontFamily="monospace"
+                    fontStyle="bold"
+                    listening={false} // Prevents grabbing text boundaries interrupting lines natively
+                />
+            )}
         </Group>
     );
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import SimulatorCanvas from "../../../canvas/SimulatorCanvas";
 import PropertiesPanel from "../../../ui/PropertiesPanel";
+import OscilloscopeManager from "../../../ui/OscilloscopeManager";
 import useCircuitStore from "../../../store/circuitStore";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -19,9 +20,14 @@ const DefaultDashboard = () => {
 
   return (
     <div style={{ display: 'flex', width: '100%', height: '100vh', overflow: 'hidden', backgroundColor: '#fafafa' }}>
-      <div style={{ flex: 1, position: 'relative' }}>
-        {/* Core Rendering Logic Surface */}
-        <SimulatorCanvas />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          {/* Core Rendering Logic Surface */}
+          <SimulatorCanvas />
+        </div>
+        <div style={{ height: '320px', borderTop: '2px solid #333', backgroundColor: '#1e1e1e', padding: '15px', overflow: 'hidden' }}>
+          <OscilloscopeManager />
+        </div>
       </div>
 
       {/* Right Bound Controls Map */}

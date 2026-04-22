@@ -12,6 +12,15 @@ const useCircuitStore = create((set, get) => ({
 
   // Real-time Engine Processing Payload
   simulationState: { voltages: {}, currents: {} },
+  activeNetlist: null,
+
+  // Tool Interfaces
+  oscilloscopeProbe: { x: -2, y: -2 },
+  probeNodeId: null,
+
+  setOscilloscopeProbe: (pos) => set({ oscilloscopeProbe: pos }),
+  setProbeNodeId: (id) => set({ probeNodeId: id }),
+  setActiveNetlist: (netlist) => set({ activeNetlist: netlist }),
 
   // Live Context Interaction Selection
   selectedComponentId: null,
@@ -33,6 +42,7 @@ const useCircuitStore = create((set, get) => ({
     // Evaluate physics immediately hitting engine triggers natively over identical mapping algorithms
     const currentState = get();
     const activeNetlist = extractNetlist(currentState.components, currentState.wires);
+    set({ activeNetlist });
     solveCircuit(activeNetlist);
   },
 
