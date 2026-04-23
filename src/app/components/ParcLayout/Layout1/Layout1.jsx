@@ -14,7 +14,6 @@ import { ParcSuspense } from "app/components";
 import useSettings from "app/hooks/useSettings";
 import SidenavTheme from "app/components/ParcTheme/SidenavTheme/SidenavTheme";
 import { sidenavCompactWidth, sideNavWidth, topBarHeight } from "app/utils/constant";
-import SettingsFab from "app/components/SettingsFab";
 
 // STYLED COMPONENTS
 const Layout1Root = styled("div")(({ theme }) => ({
@@ -145,7 +144,6 @@ const Layout1 = () => {
 
         {settings.footer.show && settings.footer.fixed && <Footer />}
       </LayoutContainer>
-      <SettingsFab />
     </Layout1Root>
   );
 };

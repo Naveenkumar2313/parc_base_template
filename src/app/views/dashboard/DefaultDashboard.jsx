@@ -13,6 +13,7 @@ import { Box, IconButton, Collapse } from '@mui/material';
 const DefaultDashboard = () => {
   const addComponent = useCircuitStore(s => s.addComponent);
   const loadCircuit = useCircuitStore(s => s.loadCircuit);
+  const connectCollaboration = useCircuitStore(s => s.connectCollaboration);
   const [init, setInit] = useState(false);
   const [isIotOpen, setIsIotOpen] = useState(true);
   const [searchParams] = useSearchParams();
@@ -23,6 +24,7 @@ const DefaultDashboard = () => {
     if (!init) {
       const circuitId = routeId || searchParams.get('circuit_id');
       if (circuitId) {
+        connectCollaboration(circuitId);
         loadCircuit(circuitId);
       } else {
         addComponent('res_A12', { type: 'resistor', value: 330, x: 8, y: 5 });
@@ -30,7 +32,7 @@ const DefaultDashboard = () => {
       }
       setInit(true);
     }
-  }, [init, addComponent, loadCircuit, searchParams]);
+  }, [init, addComponent, loadCircuit, connectCollaboration, searchParams, routeId]);
 
   return (
     <div style={{ display: 'flex', width: '100%', height: '100vh', overflow: 'hidden', backgroundColor: '#fafafa' }}>

@@ -1,9 +1,25 @@
-import { CPU, AVRIOPort, portBConfig, portCConfig, portDConfig } from 'avr8js';
+import { CPU, AVRIOPort, portBConfig, portCConfig, portDConfig, AVRUSART, usart0Config } from 'avr8js';
 import { TransientSimulator } from './solver';
 
 let cpu = null;
 let portB, portC, portD;
+let usart = null;
 let isRunning = false;
+
+function parseIntelHex(hexString) {
+    const flash = new Uint8Array(32768);
+    for (const line of hexString.split('\n')) {
+        if (!line.startsWith(':')) continue;
+        const bytes = line.slice(1).match(/.{2}/g).map(h => parseInt(h, 16));
+        const count = bytes[0];
+        const addr = (bytes[1] << 8) | bytes[2];
+        const type = bytes[3];
+        if (type === 0x00) {
+            for (let i = 0; i < count; i++) flash[addr + i] = bytes[4 + i];
+        }
+    }
+    return new Uint16Array(flash.buffer);
+}
 
 // Instantiate the high-level Transient physics sequence logically checking `100µs` increments identically matching native limits implicitly
 const transientSim = new TransientSimulator(0.0001);
@@ -18,10 +34,18 @@ self.onmessage = (e) => {
     switch (type) {
         case 'UPDATE_NETLIST':
             transientSim.compileNetlist(payload);
-            // Immediately execute physics block cleanly generating DC bounds securely over explicit updates natively safely efficiently
+            const result = transientSim.step({}, 0);
+            result.time = 0;
+            self.postMessage({ type: 'SIMULATION_STATE', payload: result });
+            // If not running firmware, still do continuous DC updates:
             if (!isRunning) {
-                const result = transientSim.step({}, physicsTimerUs / 1000000.0);
-                self.postMessage({ type: 'SIMULATION_STATE', payload: result });
+                clearInterval(self._dcInterval);
+                self._dcInterval = setInterval(() => {
+                    const t = Date.now() / 1000;
+                    const r = transientSim.step({}, t);
+                    r.time = t;
+                    self.postMessage({ type: 'SIMULATION_STATE', payload: r });
+                }, 16); // ~60fps
             }
             break;
         case 'UART_RX':
@@ -30,8 +54,8 @@ self.onmessage = (e) => {
             break;
 
         case 'LOAD_FIRMWARE':
-            // Intel HEX should be parsed into a Uint16Array before being passed to Web Worker
-            cpu = new CPU(new Uint16Array(payload.flashBuffer));
+            const flash = parseIntelHex(payload);
+            cpu = new CPU(flash);
             usart = new AVRUSART(cpu, usart0Config, 16000000);
             usart.onByteTransmit = (data) => {
                 self.postMessage({ type: 'UART_TX', payload: String.fromCharCode(data) });
@@ -92,6 +116,7 @@ function executeSimulationBatch() {
             for (let i = 0; i < 6; i++) dynamicPins[`D${8 + i}`] = (portB.pinState & (1 << i)) ? 5 : 0;
 
             const result = transientSim.step(dynamicPins, usElapsed / 1000000.0);
+            result.time = usElapsed / 1000000.0;
             self.postMessage({ type: 'SIMULATION_STATE', payload: result });
         }
 

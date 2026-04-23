@@ -3,7 +3,7 @@ import { Stage, Layer, Group, Circle, Text, Rect, Line } from 'react-konva';
 import { Grid } from './Grid';
 import { snapToGrid, pointToGrid, gridToPixel } from './utils';
 import useCircuitStore from '../store/circuitStore';
-import CircuitComponent from '../core/components/ComponentRegistry';
+import CircuitComponent, { ComponentRegistry } from '../core/components/ComponentRegistry';
 import { Wire, JunctionDots } from './Wire/Wire';
 
 const SimulatorCanvas = () => {
@@ -14,6 +14,7 @@ const SimulatorCanvas = () => {
     const components = useCircuitStore(s => s.components);
     const wires = useCircuitStore(s => s.wires);
     const temporaryWire = useCircuitStore(s => s.temporaryWire);
+    const selectedWireIndex = useCircuitStore(s => s.selectedWireIndex);
 
     // Tools State
     const oscilloscopeProbe = useCircuitStore(s => s.oscilloscopeProbe);
@@ -54,15 +55,24 @@ const SimulatorCanvas = () => {
             if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
             // Phase 7 Component Configuration: Component rotation and flip
-            const targetId = useCircuitStore.getState().selectedComponentId;
+            const state = useCircuitStore.getState();
+            const targetId = state.selectedComponentId;
             if (targetId && !e.repeat) {
                 if (e.code === 'KeyR') {
-                    const currentRot = useCircuitStore.getState().components[targetId].rotation || 0;
-                    useCircuitStore.getState().updateComponentProp(targetId, 'rotation', (currentRot + 90) % 360);
+                    const currentRot = state.components[targetId].rotation || 0;
+                    state.updateComponentProp(targetId, 'rotation', (currentRot + 90) % 360);
                 }
                 if (e.code === 'KeyF') {
-                    const currentFlip = useCircuitStore.getState().components[targetId].flip || 1;
-                    useCircuitStore.getState().updateComponentProp(targetId, 'flip', currentFlip * -1);
+                    const currentFlip = state.components[targetId].flip || 1;
+                    state.updateComponentProp(targetId, 'flip', currentFlip * -1);
+                }
+            }
+            if ((e.code === 'Delete' || e.code === 'Backspace') && !e.repeat) {
+                if (targetId) {
+                    state.deleteComponent(targetId);
+                }
+                if (state.selectedWireIndex !== null) {
+                    state.deleteWire(state.selectedWireIndex);
                 }
             }
         };
@@ -199,7 +209,17 @@ const SimulatorCanvas = () => {
                 <Layer id="wire-layer">
                     <JunctionDots wires={wires} />
                     {wires.map((wire, idx) => (
-                        <Wire key={idx} start={wire.start} end={wire.end} isTemporary={false} />
+                        <Wire
+                            key={idx}
+                            start={wire.start}
+                            end={wire.end}
+                            isTemporary={false}
+                            isSelected={selectedWireIndex === idx}
+                            onClick={(e) => {
+                                e.cancelBubble = true;
+                                useCircuitStore.getState().setSelectedWireIndex(idx);
+                            }}
+                        />
                     ))}
                     {temporaryWire && (
                         <Wire
@@ -214,7 +234,7 @@ const SimulatorCanvas = () => {
                     {/* Main component rendering logic goes here */}
                     {Object.entries(components).map(([id, comp]) => (
                         <CircuitComponent
-                            key={id}
+                            key={`${id}-${comp.rotation}-${comp.flip}`} // Add rotation and flip to key to force Konva re-render
                             id={id}
                             type={comp.type}
                             value={comp.value}
@@ -286,6 +306,43 @@ const SimulatorCanvas = () => {
                         <Circle radius={10} fill="#00ff33" stroke="#fff" strokeWidth={2} />
                         <Text y={15} x={0} text="CH1" fill="#00ff33" fontSize={14} fontStyle="bold" align="center" offsetX={15} />
                     </Group>
+
+                    {(() => {
+                        const state = useCircuitStore.getState();
+                        const netlist = state.activeNetlist;
+                        const sim = state.simulationState;
+                        if (!netlist || !sim || !sim.voltages) return null;
+
+                        const nodePositions = {};
+                        for (const [compId, comp] of Object.entries(components)) {
+                            const schema = ComponentRegistry[comp.type];
+                            if (!schema) continue;
+                            schema.pins.forEach(pin => {
+                                const pinStr = `${compId}:${pin.id}`;
+                                const nodeId = netlist.pinToNodeMap[pinStr];
+                                if (nodeId !== undefined && nodeId !== 0 && !nodePositions[nodeId]) {
+                                    nodePositions[nodeId] = { x: comp.x + pin.x, y: comp.y + pin.y };
+                                }
+                            });
+                        }
+
+                        return Object.entries(nodePositions).map(([nodeId, pos]) => {
+                            const v = sim.voltages[nodeId];
+                            if (v === undefined) return null;
+                            return (
+                                <Text
+                                    key={`vlabel-${nodeId}`}
+                                    x={gridToPixel(pos.x) + 8}
+                                    y={gridToPixel(pos.y) - 15}
+                                    text={`${v.toFixed(2)}V`}
+                                    fill="#ff00cc"
+                                    fontSize={12}
+                                    fontFamily="monospace"
+                                    fontStyle="bold"
+                                />
+                            );
+                        });
+                    })()}
 
                     {/* Highly Interactive Multimeter Tool Hardware Layer dynamically mapping bounds securely explicitly efficiently accurately natively evaluated directly mapped! */}
                     <Group

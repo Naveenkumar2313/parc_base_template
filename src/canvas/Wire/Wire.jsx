@@ -12,7 +12,7 @@ export const getManhattanPoints = (start, end) => {
     ];
 };
 
-export const Wire = ({ start, end, isTemporary = false }) => {
+export const Wire = ({ start, end, isTemporary = false, isSelected = false, onClick }) => {
     const pointsData = useMemo(() => {
         const pts = getManhattanPoints(start, end);
         // Unroll structure specifically for Konva mapping array [x1, y1, x2, y2, x3, y3]
@@ -25,13 +25,14 @@ export const Wire = ({ start, end, isTemporary = false }) => {
     return (
         <Line
             points={pointsData}
-            stroke={isTemporary ? '#8ab4f8' : '#2c3e50'} // Google-blue for drag-state tracking
-            strokeWidth={isTemporary ? 2 : 2.5}
+            stroke={isSelected ? '#ff0000' : (isTemporary ? '#8ab4f8' : '#2c3e50')} // Red for selected, Google-blue for drag-state tracking
+            strokeWidth={isSelected ? 4 : (isTemporary ? 2 : 2.5)}
             dash={isTemporary ? [6, 4] : undefined}
             lineCap="round"
             lineJoin="round"
             hitStrokeWidth={15} // Extra margin tracking for wire selections / ray casts
             listening={!isTemporary}
+            onClick={onClick}
         />
     );
 };

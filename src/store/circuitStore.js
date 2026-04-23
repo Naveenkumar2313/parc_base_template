@@ -48,7 +48,10 @@ const useCircuitStore = create((set, get) => {
 
     // Live Context Interaction Selection
     selectedComponentId: null,
-    setSelectedComponentId: (id) => set({ selectedComponentId: id }),
+    setSelectedComponentId: (id) => set({ selectedComponentId: id, selectedWireIndex: null }),
+
+    selectedWireIndex: null,
+    setSelectedWireIndex: (index) => set({ selectedWireIndex: index, selectedComponentId: null }),
 
     // Node registration bindings
     addComponent: (id, component) => set((state) => ({
@@ -103,17 +106,42 @@ const useCircuitStore = create((set, get) => {
     // Wire Interaction Lifecycle mapping
     setTemporaryWire: (wire) => set({ temporaryWire: wire }),
 
-    commitWire: (completedWire) => set((state) => {
-      // When completedWire is successfully bound natively between two endpoints, clear cache and save 
-      const newState = {
+    commitWire: (completedWire) => {
+      set((state) => ({
         wires: [...state.wires, completedWire],
         temporaryWire: null
-      };
-
-      // Delay explicitly broadcasting until state has resolved internally
+      }));
+      const s = get();
+      const netlist = extractNetlist(s.components, s.wires);
+      set({ activeNetlist: netlist });
+      simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: netlist });
       setTimeout(() => get().broadcastChange(), 0);
-      return newState;
-    }),
+    },
+
+    deleteComponent: (id) => {
+      set((state) => {
+        const { [id]: _, ...newComponents } = state.components;
+        const newWires = state.wires.filter(w => w.start.compId !== id && w.end.compId !== id);
+        return { components: newComponents, wires: newWires, selectedComponentId: null };
+      });
+      const s = get();
+      const netlist = extractNetlist(s.components, s.wires);
+      set({ activeNetlist: netlist });
+      simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: netlist });
+      setTimeout(() => get().broadcastChange(), 0);
+    },
+
+    deleteWire: (index) => {
+      set((state) => {
+        const newWires = state.wires.filter((_, i) => i !== index);
+        return { wires: newWires };
+      });
+      const s = get();
+      const netlist = extractNetlist(s.components, s.wires);
+      set({ activeNetlist: netlist });
+      simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: netlist });
+      setTimeout(() => get().broadcastChange(), 0);
+    },
 
     clearTemporaryWire: () => set({ temporaryWire: null }),
 
@@ -122,7 +150,12 @@ const useCircuitStore = create((set, get) => {
       nodes: { ...state.nodes, [id]: node }
     })),
 
-    updateSimulationState: (simulationState) => set({ simulationState }),
+    simulationStateBuffer: [],
+    updateSimulationState: (simulationState) => set((state) => ({
+      simulationState,
+      simulationStateBuffer: [...state.simulationStateBuffer, simulationState]
+    })),
+    clearSimulationBuffer: () => set({ simulationStateBuffer: [] }),
 
     wsConn: null,
     connectCollaboration: (circuitId) => {

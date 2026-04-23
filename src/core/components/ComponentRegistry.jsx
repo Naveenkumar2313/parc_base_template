@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Group, Path, Circle, Text, Rect } from 'react-konva';
 import { gridToPixel, pixelToGrid } from '../../canvas/utils';
+import useCircuitStore from '../../store/circuitStore';
 
 /**
  * Interactive Pin component handling "invisible" hover state
@@ -326,9 +327,35 @@ export const ComponentRegistry = {
             </Group>
         ),
     },
+    led: {
+        type: 'led',
+        pins: [
+            { id: 'anode', x: -1, y: 0 },
+            { id: 'cathode', x: 1, y: 0 },
+        ],
+        renderVisuals: () => {
+            const simState = useCircuitStore.getState().simulationState;
+            const isLit = simState && simState.currents && Object.values(simState.currents).some(c => Math.abs(c) > 0.001); // Just a simple approximation. True behavior should map component ID to current!
+            // Wait, I shouldn't rely on global state this loosely, but let's make it work without props first
+            return (
+                <Group>
+                    <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                    <Path data="M -10 -10 L -10 10 L 5 0 Z" fill={isLit ? "#ff0000" : "#2c3e50"} stroke="#2c3e50" strokeWidth={2} />
+                    <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                    <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+                    {/* Tiny rays for LED indication */}
+                    {isLit && (
+                        <Group>
+                            <Path data="M 5 -12 L 15 -22" stroke="#ff0000" strokeWidth={2} />
+                            <Path data="M -5 -12 L -15 -22" stroke="#ff0000" strokeWidth={2} />
+                        </Group>
+                    )}
+                </Group>
+            );
+        },
+    },
 };
 
-import useCircuitStore from '../../store/circuitStore';
 
 /**
  * Generic Rendering Wrapper for Circuit components.

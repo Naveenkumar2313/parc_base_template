@@ -14,17 +14,20 @@ const OscilloscopeManager = () => {
                 const state = useCircuitStore.getState();
                 const nodeId = state.probeNodeId;
 
-                // Track real-world seconds mapping cleanly to local bounds calculations
-                const t = (time - startTime) / 1000.0;
+                const buffer = state.simulationStateBuffer;
+                if (buffer && buffer.length > 0) {
+                    const mappedData = buffer.map((simState) => {
+                        let voltage = 0;
+                        if (nodeId !== null && simState && simState.voltages) {
+                            voltage = simState.voltages[nodeId] || 0;
+                        }
+                        const simTime = simState.time !== undefined ? simState.time : ((time - startTime) / 1000.0);
+                        return { time: simTime, voltage };
+                    });
 
-                let voltage = 0;
-                // Specifically extract pure algebra targets dynamically from the active simulation state buffer mappings
-                if (nodeId !== null && state.simulationState && state.simulationState.voltages) {
-                    voltage = state.simulationState.voltages[nodeId] || 0;
+                    useCircuitStore.getState().clearSimulationBuffer();
+                    scopeRef.current.pushDataBatch(mappedData);
                 }
-
-                // Batch the immediate native time variable into the physical renderer securely!
-                scopeRef.current.pushDataBatch([{ time: t, voltage }]);
             }
             animationRef.current = requestAnimationFrame(loop);
         };
