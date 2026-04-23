@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import SimulatorCanvas from "../../../canvas/SimulatorCanvas";
 import PropertiesPanel from "../../../ui/PropertiesPanel";
 import OscilloscopeManager from "../../../ui/OscilloscopeManager";
-import Sidebar from "../../../ui/Sidebar";
 import CodeEditor from "../../../ui/CodeEditor";
 import SerialMonitor from "../../../ui/SerialMonitor";
 import useCircuitStore from "../../../store/circuitStore";
@@ -35,9 +34,7 @@ const DefaultDashboard = () => {
   }, [init, addComponent, loadCircuit, connectCollaboration, searchParams, routeId]);
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: '100vh', overflow: 'hidden', backgroundColor: '#fafafa' }}>
-      {/* Left Bound Controls Map integrating Hardware Configs smoothly dynamically routing natively accurately effectively accurately safely natively successfully parsing variables cleanly effectively exactly */}
-      <Sidebar />
+    <div style={{ display: 'flex', width: '100%', height: 'auto', overflow: 'scroll', backgroundColor: '#fafafa' }}>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1, position: 'relative' }}>
