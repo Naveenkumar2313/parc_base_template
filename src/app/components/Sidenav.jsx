@@ -57,6 +57,14 @@ export default function Sidenav({ children }) {
     const baseProps = { type, x: 10, y: 10, rotation: 0, flip: 1 };
     if (type === 'resistor') baseProps.value = 1000;
     else if (type === 'dcSource') baseProps.value = 5;
+    else if (type === 'capacitor') baseProps.value = 0.000001; // 1uF
+    else if (type === 'inductor') baseProps.value = 0.001; // 1mH
+    else if (type === 'functionGenerator') {
+      baseProps.offset = 2.5;
+      baseProps.amplitude = 2.5;
+      baseProps.frequency = 10;
+      baseProps.waveform = 'sine';
+    }
     addComponent(id, baseProps);
   };
 
@@ -65,6 +73,7 @@ export default function Sidenav({ children }) {
     { type: 'capacitor', label: 'Capacitor' },
     { type: 'inductor', label: 'Inductor' },
     { type: 'dcSource', label: 'DC Source' },
+    { type: 'functionGenerator', label: 'Func Gen' },
     { type: 'diode', label: 'Diode' },
     { type: 'bjt_npn', label: 'NPN BJT' },
     { type: 'mosfet_n', label: 'N-MOSFET' },

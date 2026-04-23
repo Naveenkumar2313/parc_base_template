@@ -333,26 +333,25 @@ export const ComponentRegistry = {
             { id: 'anode', x: -1, y: 0 },
             { id: 'cathode', x: 1, y: 0 },
         ],
-        renderVisuals: () => {
-            const simState = useCircuitStore.getState().simulationState;
-            const isLit = simState && simState.currents && Object.values(simState.currents).some(c => Math.abs(c) > 0.001); // Just a simple approximation. True behavior should map component ID to current!
-            // Wait, I shouldn't rely on global state this loosely, but let's make it work without props first
-            return (
-                <Group>
-                    <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
-                    <Path data="M -10 -10 L -10 10 L 5 0 Z" fill={isLit ? "#ff0000" : "#2c3e50"} stroke="#2c3e50" strokeWidth={2} />
-                    <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
-                    <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
-                    {/* Tiny rays for LED indication */}
-                    {isLit && (
-                        <Group>
-                            <Path data="M 5 -12 L 15 -22" stroke="#ff0000" strokeWidth={2} />
-                            <Path data="M -5 -12 L -15 -22" stroke="#ff0000" strokeWidth={2} />
-                        </Group>
-                    )}
-                </Group>
-            );
-        },
+        renderVisuals: ({ isLit = false } = {}) => (
+            <Group>
+                <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path
+                    data="M -10 -10 L -10 10 L 5 0 Z"
+                    fill={isLit ? "#ff4444" : "#2c3e50"}
+                    stroke="#2c3e50"
+                    strokeWidth={2}
+                />
+                <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+                {isLit && (
+                    <Group>
+                        <Path data="M 8 -14 L 14 -20" stroke="#ff4444" strokeWidth={2} />
+                        <Path data="M 2 -14 L -4 -20" stroke="#ff4444" strokeWidth={2} />
+                    </Group>
+                )}
+            </Group>
+        ),
     },
 };
 
@@ -363,9 +362,26 @@ export const ComponentRegistry = {
  */
 export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, flip = 1 }) => {
     const schema = ComponentRegistry[type];
+    const simulationState = useCircuitStore(s => s.simulationState);
+    const activeNetlist = useCircuitStore(s => s.activeNetlist);
+
     if (!schema) {
         console.warn(`Unknown component type: ${type}`);
         return null;
+    }
+
+    // Compute LED lit state reactively
+    let renderProps = {};
+    if (type === 'led' && activeNetlist && simulationState?.voltages) {
+        const anodePin = `${id}:anode`;
+        const cathodePin = `${id}:cathode`;
+        const anodeNode = activeNetlist.pinToNodeMap[anodePin];
+        const cathodeNode = activeNetlist.pinToNodeMap[cathodePin];
+        if (anodeNode !== undefined && cathodeNode !== undefined) {
+            const va = simulationState.voltages[anodeNode] || 0;
+            const vc = simulationState.voltages[cathodeNode] || 0;
+            renderProps.isLit = (va - vc) > 0.6;
+        }
     }
 
     return (
@@ -394,7 +410,7 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
             }}
         >
             {/* 1. Component Shape Constraints */}
-            {schema.renderVisuals()}
+            {schema.renderVisuals(renderProps)}
 
             {/* 2. Map Interactive Logic Hooks (Pins) */}
             {schema.pins.map((pin) => (
@@ -412,7 +428,7 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
                 <Text
                     x={-15}
                     y={22}
-                    text={`${value}${type === 'resistor' ? 'Ω' : 'V'}`}
+                    text={`${value}${type === 'resistor' ? 'Ω' : type === 'dcSource' ? 'V' : ''}`}
                     fill="#333"
                     fontSize={13}
                     fontFamily="monospace"

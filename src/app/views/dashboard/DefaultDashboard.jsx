@@ -34,10 +34,10 @@ const DefaultDashboard = () => {
   }, [init, addComponent, loadCircuit, connectCollaboration, searchParams, routeId]);
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: 'auto', overflow: 'scroll', backgroundColor: '#fafafa' }}>
+    <div style={{ display: 'flex', width: '100%', height: 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#fafafa' }}>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           {/* Core Rendering Logic Surface */}
           <SimulatorCanvas />
         </div>

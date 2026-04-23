@@ -54,9 +54,15 @@ const useCircuitStore = create((set, get) => {
     setSelectedWireIndex: (index) => set({ selectedWireIndex: index, selectedComponentId: null }),
 
     // Node registration bindings
-    addComponent: (id, component) => set((state) => ({
-      components: { ...state.components, [id]: component }
-    })),
+    addComponent: (id, component) => {
+      set((state) => ({
+        components: { ...state.components, [id]: component }
+      }));
+      const s = get();
+      const netlist = extractNetlist(s.components, s.wires);
+      set({ activeNetlist: netlist });
+      simWorker.postMessage({ type: 'UPDATE_NETLIST', payload: netlist });
+    },
 
     updateComponentValue: (id, newValue) => {
       set((state) => ({
@@ -89,12 +95,35 @@ const useCircuitStore = create((set, get) => {
     },
 
     updateComponentPosition: (id, x, y) => {
-      set((state) => ({
-        components: {
-          ...state.components,
-          [id]: { ...state.components[id], x, y }
-        }
-      }));
+      set((state) => {
+        const oldComp = state.components[id];
+        if (!oldComp) return state;
+
+        const dx = x - oldComp.x;
+        const dy = y - oldComp.y;
+
+        const newWires = state.wires.map(w => {
+          let newStart = { ...w.start };
+          let newEnd = { ...w.end };
+          if (newStart.compId === id) {
+            newStart.x += dx;
+            newStart.y += dy;
+          }
+          if (newEnd.compId === id) {
+            newEnd.x += dx;
+            newEnd.y += dy;
+          }
+          return { ...w, start: newStart, end: newEnd };
+        });
+
+        return {
+          components: {
+            ...state.components,
+            [id]: { ...oldComp, x, y }
+          },
+          wires: newWires
+        };
+      });
 
       const currentState = get();
       const activeNetlist = extractNetlist(currentState.components, currentState.wires);

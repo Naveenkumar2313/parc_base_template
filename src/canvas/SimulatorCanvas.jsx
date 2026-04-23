@@ -6,6 +6,7 @@ import useCircuitStore from '../store/circuitStore';
 import CircuitComponent, { ComponentRegistry } from '../core/components/ComponentRegistry';
 import { Wire, JunctionDots } from './Wire/Wire';
 import { IconButton, Tooltip } from '@mui/material';
+import VoltageLabels from './VoltageLabels';
 
 const ZoomInSVG = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
@@ -399,42 +400,7 @@ const SimulatorCanvas = () => {
                         <Text y={15} x={0} text="CH1" fill="#00ff33" fontSize={14} fontStyle="bold" align="center" offsetX={15} />
                     </Group>
 
-                    {(() => {
-                        const state = useCircuitStore.getState();
-                        const netlist = state.activeNetlist;
-                        const sim = state.simulationState;
-                        if (!netlist || !sim || !sim.voltages) return null;
-
-                        const nodePositions = {};
-                        for (const [compId, comp] of Object.entries(components)) {
-                            const schema = ComponentRegistry[comp.type];
-                            if (!schema) continue;
-                            schema.pins.forEach(pin => {
-                                const pinStr = `${compId}:${pin.id}`;
-                                const nodeId = netlist.pinToNodeMap[pinStr];
-                                if (nodeId !== undefined && nodeId !== 0 && !nodePositions[nodeId]) {
-                                    nodePositions[nodeId] = { x: comp.x + pin.x, y: comp.y + pin.y };
-                                }
-                            });
-                        }
-
-                        return Object.entries(nodePositions).map(([nodeId, pos]) => {
-                            const v = sim.voltages[nodeId];
-                            if (v === undefined) return null;
-                            return (
-                                <Text
-                                    key={`vlabel-${nodeId}`}
-                                    x={gridToPixel(pos.x) + 8}
-                                    y={gridToPixel(pos.y) - 15}
-                                    text={`${v.toFixed(2)}V`}
-                                    fill="#ff00cc"
-                                    fontSize={12}
-                                    fontFamily="monospace"
-                                    fontStyle="bold"
-                                />
-                            );
-                        });
-                    })()}
+                    <VoltageLabels components={components} />
 
                     {/* Highly Interactive Multimeter Tool Hardware Layer dynamically mapping bounds securely explicitly efficiently accurately natively evaluated directly mapped! */}
                     <Group
