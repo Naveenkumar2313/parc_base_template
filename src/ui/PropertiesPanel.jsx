@@ -82,6 +82,75 @@ const PropertiesPanel = () => {
                 </Box>
             )}
 
+            {component.type === 'zener_diode' && (
+                <Box sx={{ mt: 2 }}>
+                    <TextField
+                        label="Breakdown Voltage (V)"
+                        type="number"
+                        value={component.breakdownVoltage !== undefined ? component.breakdownVoltage : 5.1}
+                        onChange={(e) => updateComponentProp(selectedComponentId, 'breakdownVoltage', Number(e.target.value))}
+                        variant="filled"
+                        fullWidth
+                        InputLabelProps={{ style: { color: '#aaa' } }}
+                        inputProps={{
+                            style: { color: '#ff4444', fontSize: '1.1rem' },
+                            step: '0.1'
+                        }}
+                        sx={{
+                            backgroundColor: '#111',
+                            borderRadius: 1,
+                            '& .MuiFilledInput-root': {
+                                '&:before': { borderBottomColor: '#555' },
+                                '&:hover:not(.Mui-disabled):before': { borderBottomColor: '#90caf9' },
+                            }
+                        }}
+                    />
+                </Box>
+            )}
+
+            {component.type === 'spst_switch' && (
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#111', p: 2, borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <Typography sx={{ color: '#aaa', fontWeight: 600 }}>Switch State:</Typography>
+                    <Typography
+                        sx={{
+                            color: component.isOpen !== false ? '#ff4444' : '#44ff44',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            px: 2, py: 0.5, borderRadius: 1, border: '1px solid #333'
+                        }}
+                        onClick={() => updateComponentProp(selectedComponentId, 'isOpen', component.isOpen === false)}
+                    >
+                        {component.isOpen !== false ? 'OPEN' : 'CLOSED'}
+                    </Typography>
+                </Box>
+            )}
+
+            {component.type === 'relay_spdt' && (
+                <Box sx={{ mt: 2 }}>
+                    <TextField
+                        label="Activation Voltage (V)"
+                        type="number"
+                        value={component.activationVoltage !== undefined ? component.activationVoltage : 5.0}
+                        onChange={(e) => updateComponentProp(selectedComponentId, 'activationVoltage', Number(e.target.value))}
+                        variant="filled"
+                        fullWidth
+                        InputLabelProps={{ style: { color: '#aaa' } }}
+                        inputProps={{
+                            style: { color: '#ff9900', fontSize: '1.1rem' },
+                            step: '0.1'
+                        }}
+                        sx={{
+                            backgroundColor: '#111',
+                            borderRadius: 1,
+                            '& .MuiFilledInput-root': {
+                                '&:before': { borderBottomColor: '#555' },
+                                '&:hover:not(.Mui-disabled):before': { borderBottomColor: '#90caf9' },
+                            }
+                        }}
+                    />
+                </Box>
+            )}
+
             {component.type === 'dcSource' && (
                 <Box sx={{ mt: 2 }}>
                     <Typography gutterBottom sx={{ color: '#aaa' }}>Voltage ({component.value || 5}V)</Typography>

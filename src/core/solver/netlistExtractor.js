@@ -111,6 +111,16 @@ export const extractNetlist = (components, wires) => {
                 id: compId,
                 type: comp.type,
                 value: comp.value,
+                wiper: comp.wiper, // Propagate potentiometer logic
+                breakdownVoltage: comp.breakdownVoltage, // Propagate Zener diode limits
+                activationVoltage: comp.activationVoltage,
+                coilResistance: comp.coilResistance,
+                isOpen: comp.isOpen,
+                isPressed: comp.isPressed,
+                frequency: comp.frequency,
+                amplitude: comp.amplitude,
+                offset: comp.offset,
+                waveform: comp.waveform,
                 nodes: mappedNodes,
                 gpioPin: comp.gpioPin // Safely maps logic constraints if component touches AVR bindings!
             });

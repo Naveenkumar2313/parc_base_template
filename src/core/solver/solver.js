@@ -88,6 +88,18 @@ export class TransientSimulator {
                     addG(n_2 - 1, nw - 1, -g2);
                 }
             }
+            else if (comp.type === 'relay_spdt') {
+                const rc = comp.coilResistance || 100;
+                const g = 1.0 / rc;
+                const ncpos = comp.nodes['coil_pos'];
+                const ncneg = comp.nodes['coil_neg'];
+                if (ncpos !== undefined && ncneg !== undefined) {
+                    addG(ncpos - 1, ncpos - 1, g);
+                    addG(ncneg - 1, ncneg - 1, g);
+                    addG(ncpos - 1, ncneg - 1, -g);
+                    addG(ncneg - 1, ncpos - 1, -g);
+                }
+            }
             else if (comp.type === 'capacitor') {
                 // MNA Transient "Companion Model": Capacitor resolves cleanly natively matching parallel Resistors dynamically (Backward Euler)
                 // Req = dt / C -> Geq = C / dt
@@ -124,7 +136,11 @@ export class TransientSimulator {
     step(dynamicPinVoltages = {}, t_seconds = 0) {
         if (this.size === 0) return { voltages: { 0: 0 }, currents: {} };
 
-        let hasNonLinear = this.components.some(c => c.type === 'diode' || c.type === 'bjt_npn' || c.type === 'bjt_pnp' || c.type === 'mosfet_n');
+        let hasNonLinear = this.components.some(c =>
+            c.type === 'diode' || c.type === 'zener_diode' || c.type === 'schottky_diode' ||
+            c.type === 'bjt_npn' || c.type === 'bjt_pnp' || c.type === 'mosfet_n' ||
+            c.type === 'spst_switch' || c.type === 'push_button' || c.type === 'relay_spdt'
+        );
         let iterations = hasNonLinear ? 10 : 1;
 
         let finalVoltages = { 0: 0 };
@@ -144,7 +160,7 @@ export class TransientSimulator {
 
             // Calculate transient bounds natively generating RHS matrix numerical inputs 
             this.components.forEach(comp => {
-                if (comp.type === 'diode') {
+                if (comp.type === 'diode' || comp.type === 'zener_diode' || comp.type === 'schottky_diode') {
                     // Newton-Raphson Shockley model iteration equivalents bounds exactly dynamically cleanly!
                     const n1 = comp.nodes['anode'];
                     const n2 = comp.nodes['cathode'];
@@ -153,16 +169,39 @@ export class TransientSimulator {
                     const v2 = (iter === 0 ? this.prevVoltages[n2] : finalVoltages[n2]) || 0;
                     let Vd = v1 - v2;
 
-                    // Bound Vd mechanically suppressing divergence
-                    if (Vd > 0.8) Vd = 0.8 + (Vd - 0.8) * 0.1;
-                    if (Vd < -20) Vd = -20;
-
-                    const Is = 1e-12; // Saturation 
+                    let Is = 1e-12; // Saturation 
                     const Vt = 0.02585; // Thermal voltage ~26mV
-                    const n = 1.0;
+                    let n = 1.0;
+                    let fwdClamp = 0.8;
 
-                    const Id = Is * (Math.exp(Vd / (n * Vt)) - 1);
-                    const Gd = (Is / (n * Vt)) * Math.exp(Vd / (n * Vt));
+                    if (comp.type === 'schottky_diode') {
+                        Is = 1e-8;
+                        fwdClamp = 0.4;
+                    }
+
+                    let Id = 0, Gd = 0;
+
+                    // Forward Biased & Reverse Standard Limits
+                    if (Vd > fwdClamp) Vd = fwdClamp + (Vd - fwdClamp) * 0.1;
+                    if (Vd < -20 && comp.type !== 'zener_diode') Vd = -20;
+
+                    // Zener Breakdown clamping
+                    if (comp.type === 'zener_diode') {
+                        const Vz = comp.breakdownVoltage !== undefined ? comp.breakdownVoltage : 5.1;
+                        if (Vd < -Vz) {
+                            // Clamped firmly in avalanche breakdown
+                            Vd = -Vz;
+                            Id = -0.01; // Small breakdown sustain current guess
+                            Gd = 100; // Small internal resistance
+                        } else {
+                            Id = Is * (Math.exp(Vd / (n * Vt)) - 1);
+                            Gd = (Is / (n * Vt)) * Math.exp(Vd / (n * Vt));
+                        }
+                    } else {
+                        Id = Is * (Math.exp(Vd / (n * Vt)) - 1);
+                        Gd = (Is / (n * Vt)) * Math.exp(Vd / (n * Vt));
+                    }
+
                     const Ieq = Id - Gd * Vd;
 
                     // Inject equivalent dynamic NR variables seamlessly
@@ -285,6 +324,46 @@ export class TransientSimulator {
 
                     addCurrent(nd - 1, -ieq);
                     addCurrent(ns - 1, ieq);
+                }
+                else if (comp.type === 'spst_switch' || comp.type === 'push_button') {
+                    const isClosed = comp.type === 'spst_switch' ? comp.isOpen === false : comp.isPressed === true;
+                    const g = isClosed ? 1e6 : 1e-12;
+                    const n1 = comp.nodes['pin1'];
+                    const n2 = comp.nodes['pin2'];
+                    if (n1 !== undefined && n2 !== undefined) {
+                        addG_iter(n1 - 1, n1 - 1, g);
+                        addG_iter(n2 - 1, n2 - 1, g);
+                        addG_iter(n1 - 1, n2 - 1, -g);
+                        addG_iter(n2 - 1, n1 - 1, -g);
+                    }
+                }
+                else if (comp.type === 'relay_spdt') {
+                    const ncpos = comp.nodes['coil_pos'];
+                    const ncneg = comp.nodes['coil_neg'];
+                    const vC1 = (iter === 0 ? this.prevVoltages[ncpos] : finalVoltages[ncpos]) || 0;
+                    const vC2 = (iter === 0 ? this.prevVoltages[ncneg] : finalVoltages[ncneg]) || 0;
+
+                    const isEnergized = Math.abs(vC1 - vC2) >= (comp.activationVoltage !== undefined ? comp.activationVoltage : 5.0);
+
+                    const comNode = comp.nodes['com'];
+                    const noNode = comp.nodes['no'];
+                    const ncNode = comp.nodes['nc'];
+
+                    if (comNode !== undefined && noNode !== undefined) {
+                        const gNO = isEnergized ? 1e6 : 1e-12;
+                        addG_iter(comNode - 1, comNode - 1, gNO);
+                        addG_iter(noNode - 1, noNode - 1, gNO);
+                        addG_iter(comNode - 1, noNode - 1, -gNO);
+                        addG_iter(noNode - 1, comNode - 1, -gNO);
+                    }
+
+                    if (comNode !== undefined && ncNode !== undefined) {
+                        const gNC = isEnergized ? 1e-12 : 1e6;
+                        addG_iter(comNode - 1, comNode - 1, gNC);
+                        addG_iter(ncNode - 1, ncNode - 1, gNC);
+                        addG_iter(comNode - 1, ncNode - 1, -gNC);
+                        addG_iter(ncNode - 1, comNode - 1, -gNC);
+                    }
                 }
                 else {
                     const n1 = comp.nodes['pin1'] || comp.nodes['pos'];

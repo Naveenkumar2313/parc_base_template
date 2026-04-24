@@ -103,6 +103,77 @@ export const ComponentRegistry = {
             </Group>
         ),
     },
+    spst_switch: {
+        type: 'spst_switch',
+        pins: [
+            { id: 'pin1', x: -1, y: 0 },
+            { id: 'pin2', x: 1, y: 0 },
+        ],
+        renderVisuals: ({ isOpen = true } = {}) => (
+            <Group>
+                <Path data="M -20 0 L -8 0" stroke="#2c3e50" strokeWidth={2} />
+                <Circle x={-8} y={0} radius={3} fill="#2c3e50" />
+                <Circle x={8} y={0} radius={3} fill="#2c3e50" />
+                {isOpen ? (
+                    <Path data="M -8 0 L 6 -8" stroke="#2c3e50" strokeWidth={2} />
+                ) : (
+                    <Path data="M -8 0 L 8 0" stroke="#2c3e50" strokeWidth={2.5} />
+                )}
+                <Path data="M 8 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+            </Group>
+        ),
+    },
+    push_button: {
+        type: 'push_button',
+        pins: [
+            { id: 'pin1', x: -1, y: 0 },
+            { id: 'pin2', x: 1, y: 0 },
+        ],
+        renderVisuals: ({ isPressed = false } = {}) => (
+            <Group>
+                <Path data="M -20 0 L -8 0" stroke="#2c3e50" strokeWidth={2} />
+                <Circle x={-8} y={0} radius={3} fill="#2c3e50" />
+                <Circle x={8} y={0} radius={3} fill="#2c3e50" />
+
+                {/* Mechanical connection indicator bar */}
+                <Path data={`M -8 ${isPressed ? 0 : -5} L 8 ${isPressed ? 0 : -5}`} stroke="#2c3e50" strokeWidth={2.5} />
+
+                {/* Button Body Rectangle */}
+                <Rect x={-8} y={isPressed ? -10 : -15} width={16} height={12} fill="#ddd" stroke="#2c3e50" strokeWidth={1.5} cornerRadius={1} />
+
+                <Path data="M 8 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+            </Group>
+        ),
+    },
+    relay_spdt: {
+        type: 'relay_spdt',
+        pins: [
+            { id: 'coil_pos', x: 0, y: -2 },
+            { id: 'coil_neg', x: 0, y: -1 },
+            { id: 'com', x: 1, y: -0.5 },
+            { id: 'nc', x: 1, y: 0.5 },
+            { id: 'no', x: 2, y: 0 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                {/* Coil Graphic */}
+                <Rect x={-15} y={-40} width={30} height={20} fill="#fcfcfc" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -5 -35 C -15 -35, -15 -25, -5 -25 C 5 -25, 5 -35, 15 -35" stroke="#2c3e50" strokeWidth={1.5} fill="transparent" />
+
+                {/* Switch Graphic normally closed state */}
+                <Circle x={20} y={-10} radius={3} fill="#2c3e50" />
+                <Circle x={20} y={10} radius={3} fill="#2c3e50" />
+                <Circle x={40} y={0} radius={3} fill="#2c3e50" />
+
+                <Path data="M 20 -10 L 40 0" stroke="#2c3e50" strokeWidth={2} />
+
+                <Text text="COIL" x={-13} y={-45} fontSize={9} fill="#555" />
+                <Text text="COM" x={24} y={-14} fontSize={9} fill="#555" />
+                <Text text="NC" x={24} y={15} fontSize={9} fill="#555" />
+                <Text text="NO" x={45} y={-4} fontSize={9} fill="#555" />
+            </Group>
+        ),
+    },
     dcSource: {
         type: 'dcSource',
         // Vertically oriented DC source, so pins are on the Y axis
@@ -182,6 +253,38 @@ export const ComponentRegistry = {
                 <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
                 <Path data="M -10 -10 L -10 10 L 5 0 Z" fill="#2c3e50" stroke="#2c3e50" strokeWidth={2} />
                 <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+            </Group>
+        ),
+    },
+    zener_diode: {
+        type: 'zener_diode',
+        pins: [
+            { id: 'anode', x: -1, y: 0 },
+            { id: 'cathode', x: 1, y: 0 },
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -10 -10 L -10 10 L 5 0 Z" fill="#2c3e50" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 5 -10 L 8 -13" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 10 L 2 13" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+            </Group>
+        ),
+    },
+    schottky_diode: {
+        type: 'schottky_diode',
+        pins: [
+            { id: 'anode', x: -1, y: 0 },
+            { id: 'cathode', x: 1, y: 0 },
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -10 -10 L -10 10 L 5 0 Z" fill="#2c3e50" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 -10 L 5 -7 C 5 -3 8 -3 8 0 C 8 3 5 3 5 7 L 5 10" stroke="#2c3e50" strokeWidth={3} fill="transparent" />
                 <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
             </Group>
         ),
@@ -369,6 +472,69 @@ export const ComponentRegistry = {
             </Group>
         ),
     },
+    led_green: {
+        type: 'led_green',
+        pins: [
+            { id: 'anode', x: -1, y: 0 },
+            { id: 'cathode', x: 1, y: 0 },
+        ],
+        renderVisuals: ({ isLit = false } = {}) => (
+            <Group>
+                <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -10 -10 L -10 10 L 5 0 Z" fill={isLit ? "#44ff44" : "#2c3e50"} stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+                {isLit && (
+                    <Group>
+                        <Path data="M 8 -14 L 14 -20" stroke="#44ff44" strokeWidth={2} />
+                        <Path data="M 2 -14 L -4 -20" stroke="#44ff44" strokeWidth={2} />
+                    </Group>
+                )}
+            </Group>
+        ),
+    },
+    led_blue: {
+        type: 'led_blue',
+        pins: [
+            { id: 'anode', x: -1, y: 0 },
+            { id: 'cathode', x: 1, y: 0 },
+        ],
+        renderVisuals: ({ isLit = false } = {}) => (
+            <Group>
+                <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -10 -10 L -10 10 L 5 0 Z" fill={isLit ? "#4488ff" : "#2c3e50"} stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+                {isLit && (
+                    <Group>
+                        <Path data="M 8 -14 L 14 -20" stroke="#4488ff" strokeWidth={2} />
+                        <Path data="M 2 -14 L -4 -20" stroke="#4488ff" strokeWidth={2} />
+                    </Group>
+                )}
+            </Group>
+        ),
+    },
+    led_yellow: {
+        type: 'led_yellow',
+        pins: [
+            { id: 'anode', x: -1, y: 0 },
+            { id: 'cathode', x: 1, y: 0 },
+        ],
+        renderVisuals: ({ isLit = false } = {}) => (
+            <Group>
+                <Path data="M -20 0 L -10 0" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -10 -10 L -10 10 L 5 0 Z" fill={isLit ? "#ffee00" : "#2c3e50"} stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M 5 -10 L 5 10" stroke="#2c3e50" strokeWidth={3} />
+                <Path data="M 5 0 L 20 0" stroke="#2c3e50" strokeWidth={2} />
+                {isLit && (
+                    <Group>
+                        <Path data="M 8 -14 L 14 -20" stroke="#ffee00" strokeWidth={2} />
+                        <Path data="M 2 -14 L -4 -20" stroke="#ffee00" strokeWidth={2} />
+                    </Group>
+                )}
+            </Group>
+        ),
+    },
 };
 
 
@@ -417,7 +583,7 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
 
     // Compute LED lit state reactively
     let renderProps = {};
-    if (type === 'led' && activeNetlist && simulationState?.voltages) {
+    if (type.startsWith('led') && activeNetlist && simulationState?.voltages) {
         const anodePin = `${id}:anode`;
         const cathodePin = `${id}:cathode`;
         const anodeNode = activeNetlist.pinToNodeMap[anodePin];
@@ -427,6 +593,14 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
             const vc = simulationState.voltages[cathodeNode] || 0;
             renderProps.isLit = (va - vc) > 0.6;
         }
+    }
+
+    // Switch States
+    if (type === 'spst_switch') {
+        renderProps.isOpen = compData?.isOpen !== false;
+    }
+    if (type === 'push_button') {
+        renderProps.isPressed = compData?.isPressed === true;
     }
 
     return (
@@ -439,6 +613,21 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
             onClick={(e) => {
                 e.cancelBubble = true;
                 useCircuitStore.getState().setSelectedComponentId(id);
+            }}
+            onMouseDown={(e) => {
+                if (type === 'push_button') {
+                    useCircuitStore.getState().updateComponentProp(id, 'isPressed', true);
+                }
+            }}
+            onMouseUp={(e) => {
+                if (type === 'push_button') {
+                    useCircuitStore.getState().updateComponentProp(id, 'isPressed', false);
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (type === 'push_button') {
+                    useCircuitStore.getState().updateComponentProp(id, 'isPressed', false);
+                }
             }}
             onDragStart={(e) => {
                 const container = e.target.getStage()?.container();

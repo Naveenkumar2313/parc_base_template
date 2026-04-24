@@ -59,6 +59,11 @@ export default function Sidenav({ children }) {
     else if (type === 'dcSource') baseProps.value = 5;
     else if (type === 'capacitor') baseProps.value = 0.000001; // 1uF
     else if (type === 'inductor') baseProps.value = 0.001; // 1mH
+    else if (type === 'spst_switch') baseProps.isOpen = true;
+    else if (type === 'relay_spdt') {
+      baseProps.activationVoltage = 5;
+      baseProps.coilResistance = 100;
+    }
     else if (type === 'functionGenerator') {
       baseProps.offset = 2.5;
       baseProps.amplitude = 2.5;
@@ -80,6 +85,8 @@ export default function Sidenav({ children }) {
     {
       title: 'Active', list: [
         { type: 'diode', label: 'Diode' },
+        { type: 'zener_diode', label: 'Zener Diode' },
+        { type: 'schottky_diode', label: 'Schottky Diode' },
         { type: 'bjt_npn', label: 'NPN BJT' },
         { type: 'mosfet_n', label: 'N-MOSFET' },
         { type: 'opamp', label: 'Op-Amp' },
@@ -93,14 +100,25 @@ export default function Sidenav({ children }) {
       ]
     },
     {
-      title: 'Logic & IC', list: [
+      title: 'Logic & Control', list: [
         { type: 'and_gate', label: 'AND Gate' },
-        { type: 'arduino_uno', label: 'Arduino UNO' },
+        { type: 'arduino_uno', label: 'Arduino UNO (MCU)' },
+        { type: 'sensor_dht11', label: 'DHT11 Sensor' },
+      ]
+    },
+    {
+      title: 'Electromechanical', list: [
+        { type: 'spst_switch', label: 'SPST Switch' },
+        { type: 'push_button', label: 'Push Button' },
+        { type: 'relay_spdt', label: 'SPDT Relay' },
       ]
     },
     {
       title: 'Output', list: [
-        { type: 'led', label: 'LED' },
+        { type: 'led', label: 'Red LED' },
+        { type: 'led_green', label: 'Green LED' },
+        { type: 'led_blue', label: 'Blue LED' },
+        { type: 'led_yellow', label: 'Yellow LED' },
       ]
     }
   ];
