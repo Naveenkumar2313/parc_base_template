@@ -56,6 +56,8 @@ export default function Sidenav({ children }) {
       baseProps.value = 10000;
       baseProps.wiper = 0.5;
     }
+    else if (type === 'power_vcc') baseProps.railVoltage = 5.0;
+    else if (type === 'power_vcc_33') baseProps.railVoltage = 3.3;
     else if (type === 'dcSource') baseProps.value = 5;
     else if (type === 'capacitor') baseProps.value = 0.000001; // 1uF
     else if (type === 'inductor') baseProps.value = 0.001; // 1mH
@@ -72,6 +74,10 @@ export default function Sidenav({ children }) {
     else if (type === 'dht22') {
       baseProps.temperature = 25;
       baseProps.humidity = 60;
+    }
+    else if (type === 'dc_motor') {
+      baseProps.armatureResistance = 5;
+      baseProps.kv = 100;
     }
     else if (type === 'functionGenerator') {
       baseProps.offset = 2.5;
@@ -106,12 +112,16 @@ export default function Sidenav({ children }) {
       ]
     },
     {
-      title: 'Power & Sources', list: [
+      title: 'Power & Probes', list: [
+        { type: 'power_vcc', label: 'VCC (+5V)' },
+        { type: 'power_vcc_33', label: 'VCC (+3.3V)' },
+        { type: 'ground_symbol', label: 'Ground (Earth)' },
+        { type: 'voltage_probe', label: 'Voltage Probe' },
         { type: 'dcSource', label: 'DC Source' },
         { type: 'functionGenerator', label: 'Func Gen' },
-        { type: 'ground', label: 'Ground' },
-        { type: '7805_regulator', label: '7805 Regulator (5V)' },
-        { type: 'lm317_regulator', label: 'LM317 Regulator (Adj)' },
+        { type: 'ground', label: 'Ground (Ref)' },
+        { type: '7805_regulator', label: '7805 Regulator' },
+        { type: 'lm317_regulator', label: 'LM317 (Adj)' },
       ]
     },
     {
@@ -123,6 +133,12 @@ export default function Sidenav({ children }) {
         { type: 'nor_gate', label: 'NOR Gate' },
         { type: 'xor_gate', label: 'XOR Gate' },
         { type: '555_timer', label: '555 Timer IC' },
+      ]
+    },
+    {
+      title: 'Digital', list: [
+        { type: 'd_flipflop', label: 'D Flip-Flop' },
+        { type: 'sr_latch', label: 'SR Latch' },
       ]
     },
     {
@@ -140,6 +156,12 @@ export default function Sidenav({ children }) {
         { type: 'push_button_wokwi', label: 'Wokwi Push Button' },
         { type: 'relay_spdt', label: 'SPDT Relay' },
         { type: 'servo_wokwi', label: 'Wokwi Servo Motor' },
+      ]
+    },
+    {
+      title: 'Actuators', list: [
+        { type: 'buzzer', label: 'Buzzer' },
+        { type: 'dc_motor', label: 'DC Motor' },
       ]
     },
     {

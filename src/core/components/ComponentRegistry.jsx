@@ -904,6 +904,142 @@ export const ComponentRegistry = {
                 <Rect x={8} y={15} width={2} height={10} fill="#aaa" />
             </Group>
         ),
+    },
+    'power_vcc': {
+        type: 'power_vcc',
+        pins: [{ id: 'vcc', x: 0, y: 1 }],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M 0 0 L 0 20" stroke="#cc0000" strokeWidth={2} />
+                <Path data="M -10 -5 L 10 -5" stroke="#cc0000" strokeWidth={3} />
+                <Text text="+5V" x={-10} y={-20} fontSize={11} fill="#cc0000" fontStyle="bold" />
+            </Group>
+        )
+    },
+    'power_vcc_33': {
+        type: 'power_vcc_33',
+        pins: [{ id: 'vcc', x: 0, y: 1 }],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M 0 0 L 0 20" stroke="#0066cc" strokeWidth={2} />
+                <Path data="M -10 -5 L 10 -5" stroke="#0066cc" strokeWidth={3} />
+                <Text text="+3V3" x={-12} y={-20} fontSize={11} fill="#0066cc" fontStyle="bold" />
+            </Group>
+        )
+    },
+    'ground_symbol': {
+        type: 'ground_symbol',
+        pins: [{ id: 'gnd', x: 0, y: -1 }],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M 0 -20 L 0 0" stroke="#333" strokeWidth={2} />
+                <Path data="M -10 0 L 10 0" stroke="#333" strokeWidth={2} />
+                <Path data="M -7 5 L 7 5" stroke="#333" strokeWidth={2} />
+                <Path data="M -4 10 L 4 10" stroke="#333" strokeWidth={2} />
+            </Group>
+        )
+    },
+    'voltage_probe': {
+        type: 'voltage_probe',
+        pins: [{ id: 'probe', x: 0, y: 0 }],
+        renderVisuals: (comp, renderProps) => {
+            const activeNetlist = useCircuitStore.getState().activeNetlist;
+            const simulationState = useCircuitStore.getState().simulationState;
+            const probeNode = activeNetlist?.pinToNodeMap[`${renderProps.id}:probe`];
+            const v = probeNode !== undefined ? (simulationState?.voltages[probeNode] || 0) : 0;
+            return (
+                <Group>
+                    <Circle x={0} y={0} radius={5} fill="#ff00cc" stroke="white" strokeWidth={2} />
+                    <Text text="V" x={-3} y={-4} fontSize={8} fill="white" fontStyle="bold" />
+                    <Text text={`${v.toFixed(2)}V`} x={8} y={-5} fill="#ff00cc" fontSize={11} fontStyle="bold" />
+                </Group>
+            )
+        }
+    },
+    'd_flipflop': {
+        type: 'd_flipflop',
+        pins: [
+            { id: 'd', x: -1.5, y: -0.5 },
+            { id: 'clk', x: -1.5, y: 0.5 },
+            { id: 'q', x: 1.5, y: -0.5 },
+            { id: 'q_bar', x: 1.5, y: 0.5 },
+            { id: 'preset', x: 0, y: -1.5 },
+            { id: 'clear', x: 0, y: 1.5 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Rect x={-30} y={-30} width={60} height={60} fill="#fff8e1" stroke="#2c3e50" strokeWidth={2} />
+                <Text text="D" x={-24} y={-10} fontSize={10} fill="#2c3e50" fontStyle="bold" />
+                <Text text="CLK" x={-28} y={10} fontSize={9} fill="#2c3e50" />
+                <Path data="M -22 5 L -16 8 L -22 11" fill="#2c3e50" />
+                <Text text="Q" x={16} y={-10} fontSize={10} fill="#2c3e50" fontStyle="bold" />
+                <Text text="Q̄" x={12} y={10} fontSize={10} fill="#2c3e50" />
+                <Text text="FF-D" x={-14} y={-5} fontSize={11} fontStyle="bold" fill="#555" />
+            </Group>
+        ),
+    },
+    'sr_latch': {
+        type: 'sr_latch',
+        pins: [
+            { id: 's', x: -1, y: -0.5 },
+            { id: 'r', x: -1, y: 0.5 },
+            { id: 'q', x: 1, y: -0.5 },
+            { id: 'q_bar', x: 1, y: 0.5 }
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Rect x={-20} y={-20} width={40} height={40} fill="#fff8e1" stroke="#2c3e50" strokeWidth={2} />
+                <Text text="S" x={-14} y={-8} fontSize={11} fill="#2c3e50" fontStyle="bold" />
+                <Text text="R" x={-14} y={5} fontSize={11} fill="#2c3e50" fontStyle="bold" />
+                <Text text="Q" x={6} y={-8} fontSize={11} fill="#2c3e50" fontStyle="bold" />
+                <Text text="Q̄" x={3} y={5} fontSize={11} fill="#2c3e50" />
+                <Text text="SR" x={-6} y={-2} fontSize={10} fill="#666" />
+            </Group>
+        ),
+    },
+    'buzzer': {
+        type: 'buzzer',
+        pins: [
+            { id: 'pos', x: -1, y: 0 },
+            { id: 'neg', x: 1, y: 0 }
+        ],
+        renderVisuals: (comp, renderProps) => {
+            const isActive = renderProps?.isActive || false;
+            const arcColor = isActive ? '#00ff88' : '#2c3e50';
+            const arcWidth = isActive ? 2.5 : 1.5;
+            return (
+                <Group>
+                    <Path data="M -20 0 L -15 0" stroke="#666" strokeWidth={2} />
+                    <Path data="M 15 0 L 20 0" stroke="#666" strokeWidth={2} />
+                    <Circle x={0} y={0} radius={15} fill="#333" stroke="#666" strokeWidth={2} />
+                    <Circle x={0} y={0} radius={8} fill="#555" stroke="#888" strokeWidth={1} />
+                    <Text text="♪" x={-5} y={-6} fontSize={14} fill="#aaa" />
+                    <Path data="M 20 -8 C 25 -4 25 4 20 8" stroke={arcColor} strokeWidth={arcWidth} fill="" />
+                    <Path data="M 24 -12 C 31 -6 31 6 24 12" stroke={arcColor} strokeWidth={arcWidth} fill="" />
+                </Group>
+            );
+        },
+    },
+    'dc_motor': {
+        type: 'dc_motor',
+        pins: [
+            { id: 'pos', x: -1, y: 0 },
+            { id: 'neg', x: 1, y: 0 }
+        ],
+        renderVisuals: (comp, renderProps) => {
+            const rpm = renderProps?.rpm || 0;
+            return (
+                <Group>
+                    <Circle x={0} y={0} radius={20} fill="#cc8800" stroke="#8b6914" strokeWidth={3} />
+                    <Rect x={-5} y={-25} width={10} height={10} fill="#666" stroke="#444" />
+                    <Rect x={-5} y={15} width={10} height={10} fill="#666" stroke="#444" />
+                    <Text text="M" x={-6} y={-6} fontSize={18} fill="white" fontStyle="bold" />
+                    <Path data="M -10 -18 A 20 20 0 0 1 10 -18" stroke="#fff" strokeWidth={2} fill="" />
+                    <Path data="M 8 -21 L 10 -18 L 13 -20" stroke="#fff" strokeWidth={1.5} fill="" />
+                    <Text text={`${rpm} RPM`} x={-20} y={28} fill="#00ffcc" fontSize={11} fontStyle="bold" />
+                </Group>
+            );
+        },
     }
 };
 
@@ -971,6 +1107,35 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
     }
     if (type === 'push_button') {
         renderProps.isPressed = compData?.isPressed === true;
+    }
+
+    // Buzzer active state
+    if (type === 'buzzer' && activeNetlist && simulationState?.voltages) {
+        const posPin = `${id}:pos`;
+        const negPin = `${id}:neg`;
+        const posNode = activeNetlist.pinToNodeMap[posPin];
+        const negNode = activeNetlist.pinToNodeMap[negPin];
+        if (posNode !== undefined && negNode !== undefined) {
+            const vp = simulationState.voltages[posNode] || 0;
+            const vn = simulationState.voltages[negNode] || 0;
+            const current = Math.abs(vp - vn) / 8.0;
+            renderProps.isActive = current > 0.01;
+        }
+    }
+
+    // DC Motor RPM calculation
+    if (type === 'dc_motor' && activeNetlist && simulationState?.voltages) {
+        const posPin = `${id}:pos`;
+        const negPin = `${id}:neg`;
+        const posNode = activeNetlist.pinToNodeMap[posPin];
+        const negNode = activeNetlist.pinToNodeMap[negPin];
+        if (posNode !== undefined && negNode !== undefined) {
+            const vp = simulationState.voltages[posNode] || 0;
+            const vn = simulationState.voltages[negNode] || 0;
+            const vApplied = Math.abs(vp - vn);
+            renderProps.rpm = Math.round(vApplied * (compData?.kv || 100));
+        }
+        renderProps.id = id;
     }
 
     return (

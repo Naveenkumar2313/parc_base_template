@@ -106,7 +106,7 @@ export const extractNetlist = (components, wires) => {
 
         // MNA matrices inherently construct physics relative only towards functional nodes. 
         // The visual GND components are strictly references and omit equation tracking footprints.
-        if (comp.type !== 'ground') {
+        if (comp.type !== 'ground' && comp.type !== 'ground_symbol' && comp.type !== 'voltage_probe') {
             netlist.components.push({
                 id: compId,
                 type: comp.type,
@@ -121,6 +121,8 @@ export const extractNetlist = (components, wires) => {
                 distance: comp.distance,
                 temperature: comp.temperature,
                 humidity: comp.humidity,
+                armatureResistance: comp.armatureResistance,
+                kv: comp.kv,
                 isOpen: comp.isOpen,
                 isPressed: comp.isPressed,
                 frequency: comp.frequency,

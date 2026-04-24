@@ -354,6 +354,63 @@ const PropertiesPanel = () => {
                 </Box>
             )}
 
+            {(component.type === 'power_vcc' || component.type === 'power_vcc_33') && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#111', borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <Typography gutterBottom sx={{ color: '#aaa', fontWeight: 600 }}>Rail Voltage</Typography>
+                    <Select
+                        value={component.railVoltage || (component.type === 'power_vcc_33' ? 3.3 : 5.0)}
+                        onChange={(e) => updateComponentProp(selectedComponentId, 'railVoltage', Number(e.target.value))}
+                        fullWidth size="small" sx={{ color: 'white', bgcolor: '#1a1a1c', border: '1px solid #333' }}
+                    >
+                        <MenuItem value={3.3}>3.3V</MenuItem>
+                        <MenuItem value={5.0}>5.0V</MenuItem>
+                        <MenuItem value={9.0}>9.0V</MenuItem>
+                        <MenuItem value={12.0}>12.0V</MenuItem>
+                    </Select>
+                </Box>
+            )}
+
+            {component.type === 'dc_motor' && (() => {
+                const posPin = `${selectedComponentId}:pos`;
+                const negPin = `${selectedComponentId}:neg`;
+                const activeNetlist = useCircuitStore.getState().activeNetlist;
+                const simState = useCircuitStore.getState().simulationState;
+                const posNode = activeNetlist?.pinToNodeMap?.[posPin];
+                const negNode = activeNetlist?.pinToNodeMap?.[negPin];
+                const vPos = posNode !== undefined ? (simState?.voltages?.[posNode] || 0) : 0;
+                const vNeg = negNode !== undefined ? (simState?.voltages?.[negNode] || 0) : 0;
+                const vApplied = Math.abs(vPos - vNeg);
+                const rpm = Math.round(vApplied * (component.kv || 100));
+                return (
+                    <Box sx={{ mt: 2, p: 2, bgcolor: '#111', borderRadius: 1, borderBottom: '1px solid #555' }}>
+                        <Typography gutterBottom sx={{ color: '#aaa', fontWeight: 600 }}>DC Motor Parameters</Typography>
+                        <Box sx={{ p: 1.5, mb: 2, bgcolor: '#1a1a1c', borderRadius: 1, border: '1px solid #333' }}>
+                            <Typography sx={{ color: '#00ffcc', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                ⚡ {rpm} RPM
+                            </Typography>
+                        </Box>
+                        <TextField
+                            label="Armature Resistance (Ω)"
+                            type="number"
+                            value={component.armatureResistance || 5}
+                            onChange={(e) => updateComponentProp(selectedComponentId, 'armatureResistance', parseFloat(e.target.value) || 5)}
+                            variant="filled" fullWidth size="small" sx={{ mb: 1.5, bgcolor: '#1a1a1c' }}
+                            InputLabelProps={{ style: { color: '#888' } }}
+                            inputProps={{ style: { color: '#fff' } }}
+                        />
+                        <TextField
+                            label="Kv — Velocity Constant (RPM/V)"
+                            type="number"
+                            value={component.kv || 100}
+                            onChange={(e) => updateComponentProp(selectedComponentId, 'kv', parseFloat(e.target.value) || 100)}
+                            variant="filled" fullWidth size="small" sx={{ bgcolor: '#1a1a1c' }}
+                            InputLabelProps={{ style: { color: '#888' } }}
+                            inputProps={{ style: { color: '#fff' } }}
+                        />
+                    </Box>
+                );
+            })()}
+
             {component.type === 'dcSource' && (
                 <Box sx={{ mt: 2 }}>
                     <Typography gutterBottom sx={{ color: '#aaa' }}>Voltage ({component.value || 5}V)</Typography>

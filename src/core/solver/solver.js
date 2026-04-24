@@ -19,6 +19,7 @@ export class TransientSimulator {
         this.prevVoltages = {};
         this.prevCurrents = {};
         this.timerStates = {};
+        this.ffStates = {};
     }
 
     compileNetlist(netlist) {
@@ -27,7 +28,7 @@ export class TransientSimulator {
         const { totalNodes, components } = netlist;
         this.components = components;
         // Map dynamically both independent logic matrices and interactive dynamic MCU targets identically
-        this.vSources = components.filter(c => c.type === 'dcSource' || c.type === 'voltageSource' || c.type === 'functionGenerator');
+        this.vSources = components.filter(c => c.type === 'dcSource' || c.type === 'voltageSource' || c.type === 'functionGenerator' || c.type === 'power_vcc' || c.type === 'power_vcc_33');
 
         this.N = totalNodes;
         const M = this.vSources.length;
@@ -101,6 +102,21 @@ export class TransientSimulator {
                     addG(ncneg - 1, ncpos - 1, -g);
                 }
             }
+            else if (comp.type === 'buzzer') {
+                const g = 1.0 / 8.0; // 8 ohm speaker impedance
+                addG(n1 - 1, n1 - 1, g);
+                addG(n2 - 1, n2 - 1, g);
+                addG(n1 - 1, n2 - 1, -g);
+                addG(n2 - 1, n1 - 1, -g);
+            }
+            else if (comp.type === 'dc_motor') {
+                const R = comp.armatureResistance || 5;
+                const g = 1.0 / R;
+                addG(n1 - 1, n1 - 1, g);
+                addG(n2 - 1, n2 - 1, g);
+                addG(n1 - 1, n2 - 1, -g);
+                addG(n2 - 1, n1 - 1, -g);
+            }
             else if (comp.type === 'capacitor') {
                 // MNA Transient "Companion Model": Capacitor resolves cleanly natively matching parallel Resistors dynamically (Backward Euler)
                 // Req = dt / C -> Geq = C / dt
@@ -121,9 +137,12 @@ export class TransientSimulator {
                 addG(n1 - 1, n2 - 1, -g);
                 addG(n2 - 1, n1 - 1, -g);
             }
-            else if (comp.type === 'dcSource' || comp.type === 'voltageSource') {
+            else if (comp.type === 'dcSource' || comp.type === 'voltageSource' || comp.type === 'power_vcc' || comp.type === 'power_vcc_33') {
                 const vIdx = this.vSources.findIndex(v => v.id === comp.id);
                 const rowNum = this.N + vIdx;
+
+                const n1 = comp.nodes['pin1'] || comp.nodes['pos'] || comp.nodes['vcc'] || 0;
+                const n2 = comp.nodes['pin2'] || comp.nodes['neg'] || 0;
 
                 addG(n1 - 1, rowNum, 1);
                 addG(n2 - 1, rowNum, -1);
@@ -482,10 +501,12 @@ export class TransientSimulator {
                         addCurrent(n1 - 1, -ieq);
                         addCurrent(n2 - 1, ieq);
                     }
-                    else if (comp.type === 'dcSource' || comp.type === 'voltageSource') {
+                    else if (comp.type === 'dcSource' || comp.type === 'voltageSource' || comp.type === 'power_vcc' || comp.type === 'power_vcc_33') {
                         const vIdx = this.vSources.findIndex(v => v.id === comp.id);
                         const rowNum = this.N + vIdx;
                         let V = comp.value || 5;
+                        if (comp.type === 'power_vcc') V = comp.railVoltage || 5;
+                        if (comp.type === 'power_vcc_33') V = comp.railVoltage || 3.3;
                         if (comp.gpioPin && dynamicPinVoltages[comp.gpioPin] !== undefined) {
                             V = dynamicPinVoltages[comp.gpioPin];
                         }
@@ -615,6 +636,36 @@ export class TransientSimulator {
                         const dataNode = comp.nodes['data'];
                         const temp = comp.temperature !== undefined ? comp.temperature : 25;
                         if (dataNode > 0) finalVoltages[dataNode] = (temp / 100.0) * 5.0;
+                    }
+                    else if (comp.type === 'd_flipflop') {
+                        const vd = getV(comp.nodes['d']);
+                        const vclk = getV(comp.nodes['clk']);
+                        if (!this.ffStates[comp.id]) this.ffStates[comp.id] = { q: false, prevClk: false };
+                        const state = this.ffStates[comp.id];
+                        const clkHigh = vclk > 2.5;
+                        // Rising edge detection
+                        if (clkHigh && !state.prevClk) {
+                            state.q = vd > 2.5;
+                        }
+                        state.prevClk = clkHigh;
+                        const qNode = comp.nodes['q'];
+                        const qBarNode = comp.nodes['q_bar'];
+                        if (qNode > 0) finalVoltages[qNode] = state.q ? 5.0 : 0.0;
+                        if (qBarNode > 0) finalVoltages[qBarNode] = state.q ? 0.0 : 5.0;
+                    }
+                    else if (comp.type === 'sr_latch') {
+                        const vs = getV(comp.nodes['s']);
+                        const vr = getV(comp.nodes['r']);
+                        if (!this.ffStates[comp.id]) this.ffStates[comp.id] = { q: false };
+                        const state = this.ffStates[comp.id];
+                        const S = vs > 2.5, R = vr > 2.5;
+                        if (S && !R) state.q = true;
+                        if (R && !S) state.q = false;
+                        // S=R=1 is invalid (metastable), keep previous state
+                        const qNode = comp.nodes['q'];
+                        const qBarNode = comp.nodes['q_bar'];
+                        if (qNode > 0) finalVoltages[qNode] = state.q ? 5.0 : 0.0;
+                        if (qBarNode > 0) finalVoltages[qBarNode] = state.q ? 0.0 : 5.0;
                     }
                 });
 
