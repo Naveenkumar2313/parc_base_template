@@ -18,6 +18,7 @@ export class TransientSimulator {
         // State Memory Blocks securely isolating iterative physical potentials numerically
         this.prevVoltages = {};
         this.prevCurrents = {};
+        this.timerStates = {};
     }
 
     compileNetlist(netlist) {
@@ -138,8 +139,9 @@ export class TransientSimulator {
 
         let hasNonLinear = this.components.some(c =>
             c.type === 'diode' || c.type === 'zener_diode' || c.type === 'schottky_diode' ||
-            c.type === 'bjt_npn' || c.type === 'bjt_pnp' || c.type === 'mosfet_n' ||
-            c.type === 'spst_switch' || c.type === 'push_button' || c.type === 'relay_spdt'
+            c.type === 'bjt_npn' || c.type === 'bjt_pnp' || c.type === 'darlington_npn' ||
+            c.type === 'mosfet_n' || c.type === 'mosfet_p' || c.type === 'jfet_n' ||
+            c.type === 'spst_switch' || c.type === 'push_button' || c.type === 'push_button_wokwi' || c.type === 'relay_spdt'
         );
         let iterations = hasNonLinear ? 10 : 1;
 
@@ -213,8 +215,9 @@ export class TransientSimulator {
                     addCurrent(n1 - 1, -Ieq);
                     addCurrent(n2 - 1, Ieq);
                 }
-                else if (comp.type === 'bjt_npn' || comp.type === 'bjt_pnp') {
-                    const isNPN = comp.type === 'bjt_npn';
+                else if (comp.type === 'bjt_npn' || comp.type === 'bjt_pnp' || comp.type === 'darlington_npn') {
+                    const isNPN = (comp.type === 'bjt_npn' || comp.type === 'darlington_npn');
+                    const isDarlington = comp.type === 'darlington_npn';
                     const sign = isNPN ? 1 : -1;
                     const nb = comp.nodes['base'];
                     const nc = comp.nodes['collector'];
@@ -233,9 +236,9 @@ export class TransientSimulator {
                     if (vbc > 0.8) vbc = 0.8 + (vbc - 0.8) * 0.1;
                     if (vbc < -20) vbc = -20;
 
-                    const Is = 1e-14;
+                    const Is = isDarlington ? 1e-13 : 1e-14;
                     const Vt = 0.02585;
-                    const alphaF = 0.99;
+                    const alphaF = isDarlington ? 0.9999 : 0.99;
                     const alphaR = 0.5;
 
                     const Ibe = (Is / alphaF) * (Math.exp(vbe / Vt) - 1);
@@ -280,6 +283,10 @@ export class TransientSimulator {
 
                     addCurrent(nc - 1, sign * -IeqCT);
                     addCurrent(ne - 1, sign * IeqCT);
+
+                    if (isDarlington) {
+                        addG_iter(ne - 1, ne - 1, 0.1);
+                    }
                 }
                 else if (comp.type === 'mosfet_n') {
                     const ng = comp.nodes['gate'];
@@ -325,7 +332,99 @@ export class TransientSimulator {
                     addCurrent(nd - 1, -ieq);
                     addCurrent(ns - 1, ieq);
                 }
-                else if (comp.type === 'spst_switch' || comp.type === 'push_button') {
+                else if (comp.type === 'mosfet_p') {
+                    const ng = comp.nodes['gate'];
+                    const ns = comp.nodes['source'];
+                    const nd = comp.nodes['drain'];
+
+                    const vg = (iter === 0 ? this.prevVoltages[ng] : finalVoltages[ng]) || 0;
+                    const vs = (iter === 0 ? this.prevVoltages[ns] : finalVoltages[ns]) || 0;
+                    const vd = (iter === 0 ? this.prevVoltages[nd] : finalVoltages[nd]) || 0;
+
+                    const vsg = vs - vg; // P-channel active condition vsg > |Vth|
+                    const vsd = vs - vd;
+
+                    const Vth_p = 1.5; // Absolute magnitude 
+                    const kp = 0.025; // 25mA/V^2
+                    const lambda = 0.01;
+
+                    let id = 0, gm = 0, gds = 0;
+
+                    if (vsg > Vth_p) {
+                        if (vsd <= vsg - Vth_p) {
+                            // Triode
+                            id = kp * ((vsg - Vth_p) * vsd - 0.5 * vsd * vsd);
+                            gm = kp * vsd;
+                            gds = kp * (vsg - Vth_p - vsd);
+                        } else {
+                            // Saturation
+                            id = 0.5 * kp * (vsg - Vth_p) * (vsg - Vth_p) * (1 + lambda * vsd);
+                            gm = kp * (vsg - Vth_p) * (1 + lambda * vsd);
+                            gds = 0.5 * kp * (vsg - Vth_p) * (vsg - Vth_p) * lambda;
+                        }
+                    }
+
+                    const ieq = id - gm * vsg - gds * vsd;
+
+                    // PMOS Id flows cleanly from Source directly to Drain
+                    addG_iter(ns - 1, ng - 1, -gm);
+                    addG_iter(ns - 1, ns - 1, gm + gds);
+                    addG_iter(ns - 1, nd - 1, -gds);
+
+                    addG_iter(nd - 1, ng - 1, gm);
+                    addG_iter(nd - 1, ns - 1, -gm - gds);
+                    addG_iter(nd - 1, nd - 1, gds);
+
+                    addCurrent(ns - 1, -ieq);
+                    addCurrent(nd - 1, ieq);
+                }
+                else if (comp.type === 'jfet_n') {
+                    const ng = comp.nodes['gate'];
+                    const nd = comp.nodes['drain'];
+                    const ns = comp.nodes['source'];
+
+                    const vg = (iter === 0 ? this.prevVoltages[ng] : finalVoltages[ng]) || 0;
+                    const vd = (iter === 0 ? this.prevVoltages[nd] : finalVoltages[nd]) || 0;
+                    const vs = (iter === 0 ? this.prevVoltages[ns] : finalVoltages[ns]) || 0;
+
+                    const vgs = vg - vs;
+                    const vds = vd - vs;
+
+                    const Vp = comp.pinchOffVoltage !== undefined ? comp.pinchOffVoltage : -2.0;
+                    const Idss = comp.Idss !== undefined ? comp.Idss : 0.01;
+
+                    let id = 0, gm = 0, gds = 0;
+
+                    if (vgs > Vp) {
+                        if (vds >= vgs - Vp) {
+                            // Saturation bounds
+                            id = Idss * Math.pow(1 - vgs / Vp, 2) * (1 + 0.01 * vds);
+                            gm = -2 * Idss * (1 - vgs / Vp) / Vp * (1 + 0.01 * vds);
+                            gds = Idss * Math.pow(1 - vgs / Vp, 2) * 0.01;
+                        } else {
+                            // Triode physics
+                            id = Idss * ((2 * (1 - vgs / Vp) * vds / (-Vp)) - Math.pow(vds / Vp, 2));
+                            gm = Idss * (2 * vds / (-Vp)) * (-1 / Vp);
+                            gds = Idss * ((2 * (1 - vgs / Vp) / (-Vp)) - 2 * vds / (Vp * Vp));
+                        }
+                        if (gm < 0) gm = 0;
+                        if (gds < 1e-12) gds = 1e-12;
+                    }
+
+                    const ieq = id - gm * vgs - gds * vds;
+
+                    addG_iter(nd - 1, ng - 1, gm);
+                    addG_iter(nd - 1, ns - 1, -gm - gds);
+                    addG_iter(nd - 1, nd - 1, gds);
+
+                    addG_iter(ns - 1, ng - 1, -gm);
+                    addG_iter(ns - 1, ns - 1, gm + gds);
+                    addG_iter(ns - 1, nd - 1, -gds);
+
+                    addCurrent(nd - 1, -ieq);
+                    addCurrent(ns - 1, ieq);
+                }
+                else if (comp.type === 'spst_switch' || comp.type === 'push_button' || comp.type === 'push_button_wokwi') {
                     const isClosed = comp.type === 'spst_switch' ? comp.isOpen === false : comp.isPressed === true;
                     const g = isClosed ? 1e6 : 1e-12;
                     const n1 = comp.nodes['pin1'];
@@ -427,6 +526,98 @@ export class TransientSimulator {
                 this.vSources.forEach((comp, idx) => {
                     finalCurrents[comp.id] = Array.isArray(res[this.N + idx]) ? res[this.N + idx][0] : res[this.N + idx];
                 });
+
+                // Logic gate behavioral simulation override mapping
+                const logicTypes = ['and_gate', 'or_gate', 'not_gate', 'nand_gate', 'nor_gate', 'xor_gate'];
+                this.components.forEach(comp => {
+                    if (!logicTypes.includes(comp.type)) return;
+                    const getV = (nodeId) => finalVoltages[nodeId] || 0;
+                    const HIGH = 5.0, LOW = 0.0, THRESH = 2.5;
+                    const isHigh = (v) => v > THRESH;
+                    let output = LOW;
+
+                    if (comp.type === 'and_gate') {
+                        output = (isHigh(getV(comp.nodes['in1'])) && isHigh(getV(comp.nodes['in2']))) ? HIGH : LOW;
+                    } else if (comp.type === 'or_gate') {
+                        output = (isHigh(getV(comp.nodes['in1'])) || isHigh(getV(comp.nodes['in2']))) ? HIGH : LOW;
+                    } else if (comp.type === 'not_gate') {
+                        output = isHigh(getV(comp.nodes['in'])) ? LOW : HIGH;
+                    } else if (comp.type === 'nand_gate') {
+                        output = (isHigh(getV(comp.nodes['in1'])) && isHigh(getV(comp.nodes['in2']))) ? LOW : HIGH;
+                    } else if (comp.type === 'nor_gate') {
+                        output = (isHigh(getV(comp.nodes['in1'])) || isHigh(getV(comp.nodes['in2']))) ? LOW : HIGH;
+                    } else if (comp.type === 'xor_gate') {
+                        const a = isHigh(getV(comp.nodes['in1']));
+                        const b = isHigh(getV(comp.nodes['in2']));
+                        output = (a !== b) ? HIGH : LOW;
+                    }
+
+                    if (comp.nodes['out'] && comp.nodes['out'] > 0) {
+                        finalVoltages[comp.nodes['out']] = output;
+                    }
+                });
+
+                // IC Behavioral Integrations
+                this.components.forEach(comp => {
+                    if (comp.type === '555_timer') {
+                        const getV = (nodeId) => finalVoltages[nodeId] || 0;
+                        const vcc = getV(comp.nodes['vcc']);
+                        const vThresh = getV(comp.nodes['threshold']);
+                        const vTrig = getV(comp.nodes['trigger']);
+
+                        if (!this.timerStates[comp.id]) this.timerStates[comp.id] = { output: true };
+                        const state = this.timerStates[comp.id];
+
+                        if (vThresh > (2 / 3) * vcc) state.output = false;
+                        if (vTrig < (1 / 3) * vcc) state.output = true;
+
+                        const outNode = comp.nodes['output'];
+                        if (outNode > 0) finalVoltages[outNode] = state.output ? Math.max(0, vcc - 0.5) : 0.1;
+
+                        const disNode = comp.nodes['discharge'];
+                        if (disNode > 0 && !state.output) {
+                            finalVoltages[disNode] = 0.05;
+                        }
+                    }
+                    else if (comp.type === '7805_regulator') {
+                        const getV = (nodeId) => finalVoltages[nodeId] || 0;
+                        const vin = getV(comp.nodes['input']);
+                        const vgnd = getV(comp.nodes['gnd']);
+                        const vout_node = comp.nodes['output'];
+
+                        // Output is regulated 5V above gnd if input has sufficient headroom
+                        const regulated = 5.0;
+                        const dropout = 2.0;
+                        if (vout_node > 0) {
+                            finalVoltages[vout_node] = (vin - vgnd > regulated + dropout) ? (vgnd + regulated) : Math.max(0, vin - dropout);
+                        }
+                    }
+                    else if (comp.type === 'lm317_regulator') {
+                        const getV = (nodeId) => finalVoltages[nodeId] || 0;
+                        const vin = getV(comp.nodes['input']);
+                        const vadj = getV(comp.nodes['adj']);
+
+                        // LM317 maintains 1.25V between output and adj pin dynamically resolving external resistive networks mathematically
+                        const ratio = comp.r2r1ratio !== undefined ? comp.r2r1ratio : 4.0;
+                        const targetOut = vadj + 1.25 * (1 + ratio);
+                        const outNode = comp.nodes['output'];
+
+                        if (outNode > 0) {
+                            finalVoltages[outNode] = Math.max(0, Math.min(targetOut, vin - 1.5));
+                        }
+                    }
+                    else if (comp.type === 'hc_sr04') {
+                        const echoNode = comp.nodes['echo'];
+                        const distance = comp.distance !== undefined ? comp.distance : 100;
+                        if (echoNode > 0) finalVoltages[echoNode] = (distance / 400.0) * 5.0;
+                    }
+                    else if (comp.type === 'dht22' || comp.type === 'sensor_dht11') {
+                        const dataNode = comp.nodes['data'];
+                        const temp = comp.temperature !== undefined ? comp.temperature : 25;
+                        if (dataNode > 0) finalVoltages[dataNode] = (temp / 100.0) * 5.0;
+                    }
+                });
+
             } catch (e) {
                 // Ignore singular matrices midway cleanly escaping loop limits automatically mathematically!
             }

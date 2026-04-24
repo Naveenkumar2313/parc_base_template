@@ -151,6 +151,209 @@ const PropertiesPanel = () => {
                 </Box>
             )}
 
+            {component.type === 'jfet_n' && (
+                <Box sx={{ mt: 2 }}>
+                    <TextField
+                        label="Pinch-off Voltage Vp (V)"
+                        type="number"
+                        value={component.pinchOffVoltage !== undefined ? component.pinchOffVoltage : -2.0}
+                        onChange={(e) => updateComponentProp(selectedComponentId, 'pinchOffVoltage', Number(e.target.value))}
+                        variant="filled"
+                        fullWidth
+                        sx={{ mb: 2, bgcolor: '#111' }}
+                        InputLabelProps={{ style: { color: '#aaa' } }}
+                        inputProps={{
+                            style: { color: '#90caf9', fontSize: '1.1rem' },
+                            step: '0.1', max: '0'
+                        }}
+                    />
+                    <TextField
+                        label="Idss Saturation Current (A)"
+                        type="number"
+                        value={component.Idss !== undefined ? component.Idss : 0.01}
+                        onChange={(e) => updateComponentProp(selectedComponentId, 'Idss', Number(e.target.value))}
+                        variant="filled"
+                        fullWidth
+                        sx={{ bgcolor: '#111' }}
+                        InputLabelProps={{ style: { color: '#aaa' } }}
+                        inputProps={{
+                            style: { color: '#90caf9', fontSize: '1.1rem' },
+                            step: '0.001', min: '0'
+                        }}
+                    />
+                </Box>
+            )}
+
+            {(component.type === 'mosfet_n' || component.type === 'mosfet_p' || component.type === 'bjt_npn' || component.type === 'bjt_pnp' || component.type === 'darlington_npn') && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#1a1a1c', borderRadius: 1, border: '1px dashed #333' }}>
+                    <Typography variant="body2" color="#777">
+                        {component.type.includes('mosfet') ? "Transistor physics are calculated natively via analytical Companion Model (Level 1). Vth and kp are fixed." : "Component evaluated via Ebers-Moll Newton-Raphson approximation. Alpha and Saturation bounds are statically modeled."}
+                    </Typography>
+                </Box>
+            )}
+
+            {component.type === '555_timer' && (
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#111', p: 2, borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <Typography sx={{ color: '#aaa', fontWeight: 600 }}>OUT Pin State:</Typography>
+                    <Typography
+                        sx={{
+                            color: (() => {
+                                if (!activeNetlist || !simulationState?.voltages) return '#888';
+                                const outNode = activeNetlist.pinToNodeMap[`${selectedComponentId}:output`];
+                                if (!outNode) return '#888';
+                                return simulationState.voltages[outNode] > 2.5 ? '#44ff44' : '#ff4444';
+                            })(),
+                            fontWeight: 'bold',
+                            px: 2, py: 0.5, borderRadius: 1, border: '1px solid #333'
+                        }}
+                    >
+                        {(() => {
+                            if (!activeNetlist || !simulationState?.voltages) return '---';
+                            const outNode = activeNetlist.pinToNodeMap[`${selectedComponentId}:output`];
+                            if (!outNode) return 'UNCONNECTED';
+                            return simulationState.voltages[outNode] > 2.5 ? 'HIGH' : 'LOW';
+                        })()}
+                    </Typography>
+                </Box>
+            )}
+
+            {component.type === 'lm317_regulator' && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#111', borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <TextField
+                        label="Target Regulated Voltage (V)"
+                        type="number"
+                        value={(1.25 * (1 + (component.r2r1ratio !== undefined ? component.r2r1ratio : 4.0))).toFixed(2)}
+                        onChange={(e) => {
+                            const targetV = Math.max(1.25, Number(e.target.value));
+                            const r2r1ratio = (targetV / 1.25) - 1;
+                            updateComponentProp(selectedComponentId, 'r2r1ratio', r2r1ratio);
+                        }}
+                        variant="filled"
+                        fullWidth
+                        InputLabelProps={{ style: { color: '#aaa' } }}
+                        inputProps={{
+                            style: { color: '#ff9900', fontSize: '1.1rem' },
+                            step: '0.1', min: '1.25'
+                        }}
+                        sx={{
+                            backgroundColor: '#111',
+                            borderRadius: 1,
+                            '& .MuiFilledInput-root': {
+                                '&:before': { borderBottomColor: '#555' },
+                                '&:hover:not(.Mui-disabled):before': { borderBottomColor: '#90caf9' },
+                            }
+                        }}
+                    />
+                    <Typography sx={{ mt: 1, color: '#777', fontSize: '0.85rem' }}>
+                        Calculated Resistor Ratio (R2/R1): {(component.r2r1ratio !== undefined ? component.r2r1ratio : 4.0).toFixed(2)}
+                    </Typography>
+                </Box>
+            )}
+
+            {component.type === 'lcd1602' && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#111', borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <Typography gutterBottom sx={{ color: '#aaa', fontWeight: 600 }}>LCD Display Content</Typography>
+                    <TextField
+                        label="Line 1"
+                        value={component.lcdText ? component.lcdText[0] : 'Hello, World!'}
+                        onChange={(e) => {
+                            const val = e.target.value.substring(0, 16);
+                            const current = component.lcdText || ['Hello, World!', 'Sim v1'];
+                            updateComponentProp(selectedComponentId, 'lcdText', [val, current[1]]);
+                        }}
+                        variant="filled" fullWidth sx={{ mb: 1, bgcolor: '#1a1a1c' }}
+                        InputLabelProps={{ style: { color: '#888' } }}
+                        inputProps={{ style: { color: '#44ff44', fontFamily: 'monospace' } }}
+                    />
+                    <TextField
+                        label="Line 2"
+                        value={component.lcdText ? component.lcdText[1] : 'Sim v1'}
+                        onChange={(e) => {
+                            const val = e.target.value.substring(0, 16);
+                            const current = component.lcdText || ['Hello, World!', 'Sim v1'];
+                            updateComponentProp(selectedComponentId, 'lcdText', [current[0], val]);
+                        }}
+                        variant="filled" fullWidth sx={{ bgcolor: '#1a1a1c' }}
+                        InputLabelProps={{ style: { color: '#888' } }}
+                        inputProps={{ style: { color: '#44ff44', fontFamily: 'monospace' } }}
+                    />
+                </Box>
+            )}
+
+            {component.type === 'neopixel' && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#111', borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <Typography gutterBottom sx={{ color: '#aaa', fontWeight: 600 }}>NeoPixel (WS2812B) Color</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                        <input
+                            type="color"
+                            value={component.color || '#ff0000'}
+                            onChange={(e) => updateComponentProp(selectedComponentId, 'color', e.target.value)}
+                            style={{
+                                width: '48px', height: '40px', padding: '0',
+                                border: '1px solid #333', borderRadius: '4px', cursor: 'pointer',
+                                background: 'transparent'
+                            }}
+                        />
+                        <TextField
+                            value={component.color || '#ff0000'}
+                            onChange={(e) => updateComponentProp(selectedComponentId, 'color', e.target.value)}
+                            variant="filled"
+                            size="small"
+                            fullWidth
+                            InputLabelProps={{ style: { color: '#888' } }}
+                            inputProps={{ style: { color: '#fff', fontFamily: 'monospace' } }}
+                        />
+                    </Box>
+                    <Typography variant="body2" sx={{ color: '#666', mt: 1.5, lineHeight: 1.2 }}>
+                        *Color state is decoupled from DIN logical protocols while pending firmware hooks.*
+                    </Typography>
+                </Box>
+            )}
+
+            {component.type === 'hc_sr04' && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#111', borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <Typography gutterBottom sx={{ color: '#aaa', fontWeight: 600 }}>Ultrasonic Distance (cm)</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Slider
+                            value={component.distance !== undefined ? component.distance : 100}
+                            onChange={(e, val) => updateComponentProp(selectedComponentId, 'distance', val)}
+                            min={0} max={400} step={1}
+                            sx={{ color: '#44ff44' }}
+                        />
+                        <Typography sx={{ color: '#fff', minWidth: '45px', textAlign: 'right' }}>
+                            {component.distance !== undefined ? component.distance : 100} cm
+                        </Typography>
+                    </Box>
+                </Box>
+            )}
+
+            {component.type === 'dht22' && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#111', borderRadius: 1, borderBottom: '1px solid #555' }}>
+                    <Typography gutterBottom sx={{ color: '#aaa', fontWeight: 600 }}>DHT22 Sensor Environment</Typography>
+                    <Box sx={{ p: 1.5, mb: 2, bgcolor: '#1a1a1c', borderRadius: 1, border: '1px solid #333' }}>
+                        <Typography sx={{ color: '#4fc3f7', fontWeight: 'bold' }}>
+                            Temp: {(component.temperature !== undefined ? component.temperature : 25).toFixed(1)}°C | Humidity: {(component.humidity !== undefined ? component.humidity : 60).toFixed(1)}%
+                        </Typography>
+                    </Box>
+
+                    <Typography gutterBottom sx={{ color: '#aaa', fontSize: '0.9rem' }}>Temperature (°C)</Typography>
+                    <Slider
+                        value={component.temperature !== undefined ? component.temperature : 25}
+                        onChange={(e, val) => updateComponentProp(selectedComponentId, 'temperature', val)}
+                        min={-40} max={80} step={0.5}
+                        sx={{ color: '#ff4444', mb: 2 }}
+                    />
+
+                    <Typography gutterBottom sx={{ color: '#aaa', fontSize: '0.9rem' }}>Relative Humidity (%)</Typography>
+                    <Slider
+                        value={component.humidity !== undefined ? component.humidity : 60}
+                        onChange={(e, val) => updateComponentProp(selectedComponentId, 'humidity', val)}
+                        min={0} max={100} step={1}
+                        sx={{ color: '#4fc3f7' }}
+                    />
+                </Box>
+            )}
+
             {component.type === 'dcSource' && (
                 <Box sx={{ mt: 2 }}>
                     <Typography gutterBottom sx={{ color: '#aaa' }}>Voltage ({component.value || 5}V)</Typography>

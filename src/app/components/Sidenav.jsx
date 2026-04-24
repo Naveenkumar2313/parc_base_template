@@ -64,6 +64,15 @@ export default function Sidenav({ children }) {
       baseProps.activationVoltage = 5;
       baseProps.coilResistance = 100;
     }
+    else if (type === 'push_button_wokwi') baseProps.isPressed = false;
+    else if (type === 'lm317_regulator') baseProps.r2r1ratio = 4.0;
+    else if (type === 'lcd1602') baseProps.lcdText = ['Hello, World!', 'Sim Ready!'];
+    else if (type === 'neopixel') baseProps.color = '#ff0000';
+    else if (type === 'hc_sr04') baseProps.distance = 100;
+    else if (type === 'dht22') {
+      baseProps.temperature = 25;
+      baseProps.humidity = 60;
+    }
     else if (type === 'functionGenerator') {
       baseProps.offset = 2.5;
       baseProps.amplitude = 2.5;
@@ -88,29 +97,49 @@ export default function Sidenav({ children }) {
         { type: 'zener_diode', label: 'Zener Diode' },
         { type: 'schottky_diode', label: 'Schottky Diode' },
         { type: 'bjt_npn', label: 'NPN BJT' },
+        { type: 'bjt_pnp', label: 'PNP BJT' },
+        { type: 'darlington_npn', label: 'NPN Darlington' },
         { type: 'mosfet_n', label: 'N-MOSFET' },
+        { type: 'mosfet_p', label: 'P-MOSFET' },
+        { type: 'jfet_n', label: 'N-JFET' },
         { type: 'opamp', label: 'Op-Amp' },
       ]
     },
     {
-      title: 'Sources', list: [
+      title: 'Power & Sources', list: [
         { type: 'dcSource', label: 'DC Source' },
         { type: 'functionGenerator', label: 'Func Gen' },
         { type: 'ground', label: 'Ground' },
+        { type: '7805_regulator', label: '7805 Regulator (5V)' },
+        { type: 'lm317_regulator', label: 'LM317 Regulator (Adj)' },
       ]
     },
     {
-      title: 'Logic & Control', list: [
+      title: 'Logic', list: [
         { type: 'and_gate', label: 'AND Gate' },
+        { type: 'or_gate', label: 'OR Gate' },
+        { type: 'not_gate', label: 'NOT Gate' },
+        { type: 'nand_gate', label: 'NAND Gate' },
+        { type: 'nor_gate', label: 'NOR Gate' },
+        { type: 'xor_gate', label: 'XOR Gate' },
+        { type: '555_timer', label: '555 Timer IC' },
+      ]
+    },
+    {
+      title: 'Control & Sensors', list: [
         { type: 'arduino_uno', label: 'Arduino UNO (MCU)' },
         { type: 'sensor_dht11', label: 'DHT11 Sensor' },
+        { type: 'dht22', label: 'DHT22 Sensor' },
+        { type: 'hc_sr04', label: 'Ultrasonic HC-SR04' },
       ]
     },
     {
       title: 'Electromechanical', list: [
         { type: 'spst_switch', label: 'SPST Switch' },
         { type: 'push_button', label: 'Push Button' },
+        { type: 'push_button_wokwi', label: 'Wokwi Push Button' },
         { type: 'relay_spdt', label: 'SPDT Relay' },
+        { type: 'servo_wokwi', label: 'Wokwi Servo Motor' },
       ]
     },
     {
@@ -119,6 +148,9 @@ export default function Sidenav({ children }) {
         { type: 'led_green', label: 'Green LED' },
         { type: 'led_blue', label: 'Blue LED' },
         { type: 'led_yellow', label: 'Yellow LED' },
+        { type: 'seven_segment', label: '7-Segment Display' },
+        { type: 'lcd1602', label: 'LCD 16x2' },
+        { type: 'neopixel', label: 'WS2812B NeoPixel' },
       ]
     }
   ];

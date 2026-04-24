@@ -115,6 +115,12 @@ export const extractNetlist = (components, wires) => {
                 breakdownVoltage: comp.breakdownVoltage, // Propagate Zener diode limits
                 activationVoltage: comp.activationVoltage,
                 coilResistance: comp.coilResistance,
+                pinchOffVoltage: comp.pinchOffVoltage,
+                Idss: comp.Idss,
+                r2r1ratio: comp.r2r1ratio,
+                distance: comp.distance,
+                temperature: comp.temperature,
+                humidity: comp.humidity,
                 isOpen: comp.isOpen,
                 isPressed: comp.isPressed,
                 frequency: comp.frequency,

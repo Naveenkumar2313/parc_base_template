@@ -13,6 +13,9 @@ const useCircuitStore = create((set, get) => {
       get().updateSimulationState(payload);
     } else if (type === 'UART_TX') {
       set(s => ({ serialBuffer: s.serialBuffer + payload }));
+    } else if (type === 'GPIO_STATE_BATCH') {
+      // Future Hook: Decode D4-D7 pin states and RS pin to reconstruct LCD commands.
+      // For now, manual text input suffices for LCD arrays natively mapping.
     }
   };
 
