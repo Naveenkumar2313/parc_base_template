@@ -56,7 +56,7 @@ const SerialMonitor = () => {
                     whiteSpace: 'pre-wrap'
                 }}
             >
-                {serialBuffer || <span style={{ color: '#555' }}>> Waiting for UART Data...</span>}
+                {serialBuffer || <span style={{ color: '#555' }}> Waiting for UART Data...</span>}
             </Box>
         </div>
     );

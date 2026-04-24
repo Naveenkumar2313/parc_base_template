@@ -23,6 +23,8 @@ import PowerSettingsNew from "@mui/icons-material/PowerSettingsNew";
 import useSettings from "app/hooks/useSettings";
 import { NotificationProvider } from "app/contexts/NotificationContext";
 import Brand from "app/components/Brand";
+import Button from "@mui/material/Button";
+import useCircuitStore from "../../../../store/circuitStore";
 
 import { Span } from "app/components/Typography";
 // import ShoppingCart from "app/components/ShoppingCart"; // Removed
@@ -167,7 +169,7 @@ const Layout1Topbar = () => {
     let { layout1Settings } = settings;
     let currentMode = layout1Settings.leftSidebar.mode;
     let newMode;
-    
+
     if (currentMode === "full") {
       newMode = "compact";
     } else if (currentMode === "compact") {
@@ -175,13 +177,13 @@ const Layout1Topbar = () => {
     } else {
       newMode = "full";
     }
-    
+
     updateSidebarMode({ mode: newMode });
   };
 
   // Static user placeholder
   const user = { name: "User", avatar: "" };
-  const logout = () => {};
+  const logout = () => { };
 
   return (
     <TopbarRoot>
@@ -190,13 +192,38 @@ const Layout1Topbar = () => {
           <StyledIconButton onClick={handleSidebarToggle}>
             <Menu />
           </StyledIconButton>
-          
+
           <BrandContainer>
             <Brand />
           </BrandContainer>
         </Box>
 
         <Box display="flex" alignItems="center">
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => useCircuitStore.getState().toggleOscilloscope()}
+            sx={{ mr: 1, bgcolor: '#333', '&:hover': { bgcolor: '#444' }, color: '#00ffcc', fontWeight: 'bold' }}
+          >
+            📺 Oscilloscope
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => useCircuitStore.getState().saveCurrentProject()}
+            sx={{ mr: 1, bgcolor: '#00af50', '&:hover': { bgcolor: '#008a3d' }, color: 'white', fontWeight: 'bold' }}
+          >
+            💾 Save State
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => { window.location.href = '/gallery'; }}
+            sx={{ mr: 2, bgcolor: '#007acc', '&:hover': { bgcolor: '#005f9e' }, color: 'white', fontWeight: 'bold' }}
+          >
+            🔍 Explore Gallery
+          </Button>
+
           <ParcSearchBox />
 
           <Tooltip title={`Switch to ${isDarkMode ? "light" : "dark"} mode`}>

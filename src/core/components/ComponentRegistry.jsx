@@ -87,6 +87,22 @@ export const ComponentRegistry = {
             />
         ),
     },
+    potentiometer: {
+        type: 'potentiometer',
+        pins: [
+            { id: 'pin1', x: -1, y: 0 },
+            { id: 'wiper', x: 0, y: -1 },
+            { id: 'pin2', x: 1, y: 0 },
+        ],
+        renderVisuals: () => (
+            <Group>
+                <Path data="M -20 0 L -12 0 L -9 -8 L -3 8 L 3 -8 L 9 8 L 12 0 L 20 0" stroke="#2c3e50" strokeWidth={2} lineJoin="round" />
+                {/* Arrow representing the wiper tap */}
+                <Path data="M 0 -5 L 0 -20" stroke="#2c3e50" strokeWidth={2} />
+                <Path data="M -3 -8 L 0 -5 L 3 -8" stroke="#2c3e50" strokeWidth={2} fill="#2c3e50" />
+            </Group>
+        ),
+    },
     dcSource: {
         type: 'dcSource',
         // Vertically oriented DC source, so pins are on the Y axis
@@ -357,13 +373,42 @@ export const ComponentRegistry = {
 
 
 /**
+ * Smart formatter for electrical property magnitude labels natively matching structural logic correctly
+ */
+export const formatValue = (type, comp) => {
+    if (!comp) return '';
+    const { value, frequency } = comp;
+
+    if (type === 'resistor' || type === 'potentiometer') return `${value}Ω`;
+    if (type === 'capacitor') {
+        if (value < 0.000001) return `${(value * 1e9).toFixed(1)}nF`;
+        if (value < 0.001) return `${(value * 1e6).toFixed(1)}µF`;
+        return `${(value * 1e3).toFixed(1)}mF`;
+    }
+    if (type === 'inductor') {
+        if (value < 0.001) return `${(value * 1e6).toFixed(1)}µH`;
+        if (value < 1) return `${(value * 1e3).toFixed(1)}mH`;
+        return `${value}H`;
+    }
+    if (type === 'dcSource' || type === 'voltageSource') return `${value}V`;
+    if (type === 'functionGenerator') {
+        if (frequency >= 1e6) return `${(frequency / 1e6).toFixed(1)}MHz`;
+        if (frequency >= 1e3) return `${(frequency / 1e3).toFixed(1)}kHz`;
+        return `${frequency || 1000}Hz`;
+    }
+    return '';
+};
+
+/**
  * Generic Rendering Wrapper for Circuit components.
  * Consumes the ComponentRegistry definition to map an abstract instance into Konva context.
  */
 export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, flip = 1 }) => {
     const schema = ComponentRegistry[type];
+    const compData = useCircuitStore(s => s.components[id]);
     const simulationState = useCircuitStore(s => s.simulationState);
     const activeNetlist = useCircuitStore(s => s.activeNetlist);
+    const isSelected = useCircuitStore(s => s.selectedComponentIds.includes(id));
 
     if (!schema) {
         console.warn(`Unknown component type: ${type}`);
@@ -409,6 +454,18 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
                 useCircuitStore.getState().updateComponentPosition(id, newX, newY);
             }}
         >
+            {/* 0. Selection Visualizer Highlights */}
+            {isSelected && (
+                <Rect
+                    x={-30}
+                    y={-30}
+                    width={60}
+                    height={60}
+                    fill="rgba(50, 150, 255, 0.15)"
+                    cornerRadius={5}
+                />
+            )}
+
             {/* 1. Component Shape Constraints */}
             {schema.renderVisuals(renderProps)}
 
@@ -424,16 +481,16 @@ export const CircuitComponent = ({ id, type, value, gridX, gridY, rotation = 0, 
             ))}
 
             {/* 3. Physical UI Annotations tracking Property Values Natively */}
-            {value !== undefined && (
+            {(compData?.value !== undefined || type === 'functionGenerator') && (
                 <Text
-                    x={-15}
+                    x={-20}
                     y={22}
-                    text={`${value}${type === 'resistor' ? 'Ω' : type === 'dcSource' ? 'V' : ''}`}
+                    text={formatValue(type, compData)}
                     fill="#333"
                     fontSize={13}
                     fontFamily="monospace"
                     fontStyle="bold"
-                    listening={false} // Prevents grabbing text boundaries interrupting lines natively
+                    listening={false}
                 />
             )}
         </Group>

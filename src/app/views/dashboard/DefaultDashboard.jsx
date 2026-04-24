@@ -8,6 +8,7 @@ import useCircuitStore from "../../../store/circuitStore";
 import { v4 as uuidv4 } from 'uuid';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { Box, IconButton, Collapse } from '@mui/material';
+import Draggable from 'react-draggable';
 
 const DefaultDashboard = () => {
   const addComponent = useCircuitStore(s => s.addComponent);
@@ -15,6 +16,8 @@ const DefaultDashboard = () => {
   const connectCollaboration = useCircuitStore(s => s.connectCollaboration);
   const [init, setInit] = useState(false);
   const [isIotOpen, setIsIotOpen] = useState(true);
+  const isOscilloscopeOpen = useCircuitStore(s => s.isOscilloscopeOpen);
+  const toggleOscilloscope = useCircuitStore(s => s.toggleOscilloscope);
   const [searchParams] = useSearchParams();
   const { id: routeId } = useParams();
 
@@ -34,17 +37,43 @@ const DefaultDashboard = () => {
   }, [init, addComponent, loadCircuit, connectCollaboration, searchParams, routeId]);
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#fafafa' }}>
+    <div style={{ display: 'flex', width: '100%', height: 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#fafafa', position: 'relative' }}>
+
+      {/* Draggable Oscilloscope Modal (Full Page Bounds) */}
+      {isOscilloscopeOpen && (
+        <Draggable handle=".osc-handle" bounds="parent">
+          <Box sx={{
+            position: 'absolute',
+            top: 20,
+            right: 370, /* Offset from the Properties layout */
+            width: 860,
+            height: 450,
+            zIndex: 1000,
+            bgcolor: '#1e1e1e',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            borderRadius: 1,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            border: '1px solid #444'
+          }}>
+            <Box className="osc-handle" sx={{ bgcolor: '#2d2d2d', color: '#00ffcc', p: 1, cursor: 'move', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #111' }}>
+              <span style={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '13px' }}>[ OSCILLOSCOPE ]</span>
+              <IconButton size="small" onClick={toggleOscilloscope} sx={{ color: '#aaa', padding: 0, '&:hover': { color: '#fff' } }}>
+                <span style={{ fontSize: '16px' }}>&times;</span>
+              </IconButton>
+            </Box>
+            <Box sx={{ flex: 1, p: 2, overflow: 'hidden' }}>
+              <OscilloscopeManager />
+            </Box>
+          </Box>
+        </Draggable>
+      )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           {/* Core Rendering Logic Surface */}
           <SimulatorCanvas />
-        </div>
-
-        {/* Analog Oscilloscope Render Pane */}
-        <div style={{ height: '320px', borderTop: '2px solid #333', backgroundColor: '#1e1e1e', padding: '15px', overflow: 'hidden' }}>
-          <OscilloscopeManager />
         </div>
 
         {/* New Collapsible Bottom Panel for Code & IoT */}

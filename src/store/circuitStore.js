@@ -44,14 +44,27 @@ const useCircuitStore = create((set, get) => {
     setMultimeterProbe: (pos) => set({ multimeterProbe: pos }),
     setMultimeterNodeId: (id) => set({ multimeterNodeId: id }),
 
+    isOscilloscopeOpen: false,
+    toggleOscilloscope: () => set(s => ({ isOscilloscopeOpen: !s.isOscilloscopeOpen })),
+
     setActiveNetlist: (netlist) => set({ activeNetlist: netlist }),
 
     // Live Context Interaction Selection
     selectedComponentId: null,
-    setSelectedComponentId: (id) => set({ selectedComponentId: id, selectedWireIndex: null }),
+    selectedComponentIds: [],
+    setSelectedComponentId: (id) => set({
+      selectedComponentId: id,
+      selectedComponentIds: id ? [id] : [],
+      selectedWireIndex: null
+    }),
+    setSelectedComponentIds: (ids) => set({
+      selectedComponentIds: ids,
+      selectedComponentId: ids.length > 0 ? ids[0] : null,
+      selectedWireIndex: null
+    }),
 
     selectedWireIndex: null,
-    setSelectedWireIndex: (index) => set({ selectedWireIndex: index, selectedComponentId: null }),
+    setSelectedWireIndex: (index) => set({ selectedWireIndex: index, selectedComponentId: null, selectedComponentIds: [] }),
 
     // Node registration bindings
     addComponent: (id, component) => {
@@ -102,25 +115,36 @@ const useCircuitStore = create((set, get) => {
         const dx = x - oldComp.x;
         const dy = y - oldComp.y;
 
-        const newWires = state.wires.map(w => {
-          let newStart = { ...w.start };
-          let newEnd = { ...w.end };
-          if (newStart.compId === id) {
-            newStart.x += dx;
-            newStart.y += dy;
-          }
-          if (newEnd.compId === id) {
-            newEnd.x += dx;
-            newEnd.y += dy;
-          }
-          return { ...w, start: newStart, end: newEnd };
+        // Determine which components to move (all selected if this is part of selection, else just this one)
+        const isMultiMove = state.selectedComponentIds.includes(id) && state.selectedComponentIds.length > 1;
+        const targetIds = isMultiMove ? state.selectedComponentIds : [id];
+
+        let newComponents = { ...state.components };
+        let newWires = state.wires.map(w => ({ ...w, start: { ...w.start }, end: { ...w.end } }));
+
+        targetIds.forEach(targetId => {
+          const comp = newComponents[targetId];
+          if (!comp) return;
+
+          // Move the component
+          newComponents[targetId] = { ...comp, x: comp.x + dx, y: comp.y + dy };
+
+          // Move its attached wires
+          newWires = newWires.map(w => {
+            if (w.start.compId === targetId) {
+              w.start.x += dx;
+              w.start.y += dy;
+            }
+            if (w.end.compId === targetId) {
+              w.end.x += dx;
+              w.end.y += dy;
+            }
+            return w;
+          });
         });
 
         return {
-          components: {
-            ...state.components,
-            [id]: { ...oldComp, x, y }
-          },
+          components: newComponents,
           wires: newWires
         };
       });
@@ -149,9 +173,12 @@ const useCircuitStore = create((set, get) => {
 
     deleteComponent: (id) => {
       set((state) => {
-        const { [id]: _, ...newComponents } = state.components;
-        const newWires = state.wires.filter(w => w.start.compId !== id && w.end.compId !== id);
-        return { components: newComponents, wires: newWires, selectedComponentId: null };
+        const idsToDelete = state.selectedComponentIds.includes(id) && state.selectedComponentIds.length > 1 ? state.selectedComponentIds : [id];
+        let newComponents = { ...state.components };
+        idsToDelete.forEach(dId => delete newComponents[dId]);
+
+        const newWires = state.wires.filter(w => !idsToDelete.includes(w.start.compId) && !idsToDelete.includes(w.end.compId));
+        return { components: newComponents, wires: newWires, selectedComponentId: null, selectedComponentIds: [] };
       });
       const s = get();
       const netlist = extractNetlist(s.components, s.wires);

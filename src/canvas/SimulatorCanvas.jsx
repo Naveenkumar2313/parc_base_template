@@ -54,6 +54,9 @@ const SimulatorCanvas = () => {
     const [isPanning, setIsPanning] = useState(false);
     const [isPanModeActive, setIsPanModeActive] = useState(false);
 
+    // Drag Select State
+    const [selectionBox, setSelectionBox] = useState(null);
+
     const handleZoom = useCallback((factor) => {
         setStageState(prev => {
             const newScale = Math.max(0.1, Math.min(prev.scale * factor, 5));
@@ -175,6 +178,18 @@ const SimulatorCanvas = () => {
         } else if (e.evt.button === 2) {
             // Right-click natively cleanly safely cancels drawing bounds explicitly
             useCircuitStore.getState().clearTemporaryWire();
+        } else if (e.evt.button === 0 && e.target === e.target.getStage()) {
+            // Initiate Drag Select on exact Canvas floor (ignoring nested Shape propagation limits)
+            const stage = e.target.getStage();
+            const pointer = stage.getPointerPosition();
+            if (pointer) {
+                const relativePoint = {
+                    x: (pointer.x - stage.x()) / stage.scaleX(),
+                    y: (pointer.y - stage.y()) / stage.scaleY()
+                };
+                setSelectionBox({ startX: relativePoint.x, startY: relativePoint.y, width: 0, height: 0 });
+                useCircuitStore.getState().setSelectedComponentIds([]);
+            }
         }
     };
 
@@ -186,6 +201,20 @@ const SimulatorCanvas = () => {
                 x: prev.x + e.evt.movementX,
                 y: prev.y + e.evt.movementY
             }));
+        } else if (selectionBox) {
+            const stage = stageRef.current;
+            const pointer = stage.getPointerPosition();
+            if (pointer) {
+                const relativePoint = {
+                    x: (pointer.x - stage.x()) / stage.scaleX(),
+                    y: (pointer.y - stage.y()) / stage.scaleY()
+                };
+                setSelectionBox(prev => ({
+                    ...prev,
+                    width: relativePoint.x - prev.startX,
+                    height: relativePoint.y - prev.startY
+                }));
+            }
         } else if (useCircuitStore.getState().temporaryWire) {
             const stage = stageRef.current;
             if (!stage) return;
@@ -210,6 +239,29 @@ const SimulatorCanvas = () => {
     const handleMouseUp = (e) => {
         if (e.evt.button === 1 || isSpacePressed || isPanModeActive) {
             setIsPanning(false);
+        }
+        if (selectionBox) {
+            const width = Math.abs(selectionBox.width);
+            const height = Math.abs(selectionBox.height);
+            // Ignore minimal stray clicks bounding limit natively
+            if (width > 5 || height > 5) {
+                const minX = Math.min(selectionBox.startX, selectionBox.startX + selectionBox.width);
+                const maxX = Math.max(selectionBox.startX, selectionBox.startX + selectionBox.width);
+                const minY = Math.min(selectionBox.startY, selectionBox.startY + selectionBox.height);
+                const maxY = Math.max(selectionBox.startY, selectionBox.startY + selectionBox.height);
+
+                const store = useCircuitStore.getState();
+                const selected = [];
+                for (const [id, comp] of Object.entries(store.components)) {
+                    const cx = gridToPixel(comp.x);
+                    const cy = gridToPixel(comp.y);
+                    if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY) {
+                        selected.push(id);
+                    }
+                }
+                store.setSelectedComponentIds(selected);
+            }
+            setSelectionBox(null);
         }
     };
 
@@ -475,6 +527,18 @@ const SimulatorCanvas = () => {
                         />
                     </Group>
 
+                    {/* Interactive Selection Drag Area Layer Binding */}
+                    {selectionBox && (
+                        <Rect
+                            x={selectionBox.startX}
+                            y={selectionBox.startY}
+                            width={selectionBox.width}
+                            height={selectionBox.height}
+                            fill="rgba(50, 150, 255, 0.15)"
+                            stroke="#3296FF"
+                            strokeWidth={1}
+                        />
+                    )}
                 </Layer>
             </Stage>
         </div>

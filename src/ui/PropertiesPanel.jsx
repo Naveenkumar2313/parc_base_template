@@ -32,25 +32,54 @@ const PropertiesPanel = () => {
 
             <Typography variant="subtitle2" sx={{ color: '#90caf9', mb: 2, textTransform: 'uppercase', letterSpacing: 1 }}>Attributes</Typography>
 
-            {component.type === 'resistor' && (
-                <TextField
-                    label="Resistance (Ω)"
-                    type="number"
-                    value={component.value || 1000}
-                    onChange={(e) => updateComponentValue(selectedComponentId, Number(e.target.value))}
-                    variant="filled"
-                    fullWidth
-                    InputLabelProps={{ style: { color: '#aaa' } }}
-                    inputProps={{ style: { color: '#fff', fontSize: '1.1rem' } }}
-                    sx={{
-                        backgroundColor: '#111',
-                        borderRadius: 1,
-                        '& .MuiFilledInput-root': {
-                            '&:before': { borderBottomColor: '#555' },
-                            '&:hover:not(.Mui-disabled):before': { borderBottomColor: '#90caf9' },
+            {['resistor', 'potentiometer', 'capacitor', 'inductor'].includes(component.type) && (
+                <Box sx={{ mt: 2 }}>
+                    <TextField
+                        label={
+                            component.type === 'capacitor' ? "Capacitance (F)" :
+                                component.type === 'inductor' ? "Inductance (H)" :
+                                    "Resistance (Ω)"
                         }
-                    }}
-                />
+                        type="number"
+                        value={component.value || (component.type === 'capacitor' ? 0.000001 : component.type === 'inductor' ? 0.001 : 1000)}
+                        onChange={(e) => updateComponentValue(selectedComponentId, Number(e.target.value))}
+                        variant="filled"
+                        fullWidth
+                        InputLabelProps={{ style: { color: '#aaa' } }}
+                        inputProps={{
+                            style: { color: '#fff', fontSize: '1.1rem' },
+                            step: component.type === 'capacitor' ? '0.000001' : component.type === 'inductor' ? '0.001' : '100'
+                        }}
+                        sx={{
+                            backgroundColor: '#111',
+                            borderRadius: 1,
+                            '& .MuiFilledInput-root': {
+                                '&:before': { borderBottomColor: '#555' },
+                                '&:hover:not(.Mui-disabled):before': { borderBottomColor: '#90caf9' },
+                            }
+                        }}
+                    />
+
+                    {component.type === 'potentiometer' && (
+                        <Box sx={{ mt: 4, px: 1 }}>
+                            <Typography gutterBottom sx={{ color: '#aaa' }}>
+                                Wiper Position ({(component.wiper ?? 0.5).toFixed(2)})
+                            </Typography>
+                            <Slider
+                                value={component.wiper ?? 0.5}
+                                min={0.0}
+                                max={1.0}
+                                step={0.01}
+                                onChange={(e, val) => updateComponentProp(selectedComponentId, 'wiper', val)}
+                                sx={{ color: '#00af50' }}
+                            />
+                            <Typography variant="caption" sx={{ color: '#777', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>R1 = {((component.value || 10000) * (component.wiper ?? 0.5)).toFixed(0)}Ω</span>
+                                <span>R2 = {((component.value || 10000) * (1 - (component.wiper ?? 0.5))).toFixed(0)}Ω</span>
+                            </Typography>
+                        </Box>
+                    )}
+                </Box>
             )}
 
             {component.type === 'dcSource' && (

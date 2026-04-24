@@ -62,6 +62,32 @@ export class TransientSimulator {
                 addG(n1 - 1, n2 - 1, -g);
                 addG(n2 - 1, n1 - 1, -g);
             }
+            else if (comp.type === 'potentiometer') {
+                const n_1 = comp.nodes['pin1'];
+                const nw = comp.nodes['wiper'];
+                const n_2 = comp.nodes['pin2'];
+
+                const w = comp.wiper !== undefined ? comp.wiper : 0.5;
+                const r1 = Math.max(1e-6, comp.value * w);
+                const r2 = Math.max(1e-6, comp.value * (1 - w));
+
+                const g1 = 1.0 / r1;
+                const g2 = 1.0 / r2;
+
+                if (n_1 !== undefined && nw !== undefined) {
+                    addG(n_1 - 1, n_1 - 1, g1);
+                    addG(nw - 1, nw - 1, g1);
+                    addG(n_1 - 1, nw - 1, -g1);
+                    addG(nw - 1, n_1 - 1, -g1);
+                }
+
+                if (nw !== undefined && n_2 !== undefined) {
+                    addG(nw - 1, nw - 1, g2);
+                    addG(n_2 - 1, n_2 - 1, g2);
+                    addG(nw - 1, n_2 - 1, -g2);
+                    addG(n_2 - 1, nw - 1, -g2);
+                }
+            }
             else if (comp.type === 'capacitor') {
                 // MNA Transient "Companion Model": Capacitor resolves cleanly natively matching parallel Resistors dynamically (Backward Euler)
                 // Req = dt / C -> Geq = C / dt
